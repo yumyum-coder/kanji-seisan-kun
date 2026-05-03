@@ -5,12 +5,12 @@ import type { ReactNode } from "react";
 import { Check, Clipboard, Mail, MessageSquareText, Pencil, Send, Share2, ShieldCheck, Sparkles } from "lucide-react";
 import {
   calculateSettlement,
-  defaultGroups,
   formatYen,
-  presetWeights,
   type PresetKey,
   type RoleGroup
 } from "@/lib/settlement";
+
+type GroupMode = "role" | "year" | "free";
 
 const presetLabels: Record<PresetKey, string> = {
   gentle: "やさしめ",
@@ -18,9 +18,124 @@ const presetLabels: Record<PresetKey, string> = {
   strong: "強め"
 };
 
+const modeLabels: Record<GroupMode, string> = {
+  role: "役職で分ける",
+  year: "年次で分ける",
+  free: "自由にグループを作る"
+};
+
 const roundingUnits = [1, 10, 100, 500, 1000];
 
+const groupWeights: Record<GroupMode, Record<PresetKey, Record<string, number>>> = {
+  role: {
+    gentle: {
+      director: 1.35,
+      manager: 1.22,
+      management: 1.14,
+      senior: 1.05,
+      junior: 0.92,
+      newcomer: 0.8
+    },
+    standard: {
+      director: 1.6,
+      manager: 1.4,
+      management: 1.25,
+      senior: 1.1,
+      junior: 0.85,
+      newcomer: 0.65
+    },
+    strong: {
+      director: 1.9,
+      manager: 1.6,
+      management: 1.35,
+      senior: 1.1,
+      junior: 0.75,
+      newcomer: 0.5
+    }
+  },
+  year: {
+    gentle: {
+      year10: 1.25,
+      year7: 1.15,
+      year4: 1.05,
+      year2: 0.95,
+      year1: 0.85
+    },
+    standard: {
+      year10: 1.45,
+      year7: 1.3,
+      year4: 1.1,
+      year2: 0.9,
+      year1: 0.7
+    },
+    strong: {
+      year10: 1.7,
+      year7: 1.45,
+      year4: 1.1,
+      year2: 0.8,
+      year1: 0.55
+    }
+  },
+  free: {
+    gentle: {
+      free1: 1.2,
+      free2: 1.05,
+      free3: 0.95,
+      free4: 0.85
+    },
+    standard: {
+      free1: 1.4,
+      free2: 1.15,
+      free3: 0.9,
+      free4: 0.7
+    },
+    strong: {
+      free1: 1.7,
+      free2: 1.25,
+      free3: 0.8,
+      free4: 0.5
+    }
+  }
+};
+
+const groupTemplates: Record<GroupMode, Array<Omit<RoleGroup, "weight">>> = {
+  role: [
+    { id: "director", label: "部長", people: 2 },
+    { id: "manager", label: "課長", people: 3 },
+    { id: "management", label: "管理職", people: 0 },
+    { id: "senior", label: "先輩", people: 4 },
+    { id: "junior", label: "若手", people: 5 },
+    { id: "newcomer", label: "新人", people: 0 }
+  ],
+  year: [
+    { id: "year10", label: "10年目以上", people: 2 },
+    { id: "year7", label: "7〜9年目", people: 3 },
+    { id: "year4", label: "4〜6年目", people: 4 },
+    { id: "year2", label: "2〜3年目", people: 4 },
+    { id: "year1", label: "1年目", people: 1 }
+  ],
+  free: [
+    { id: "free1", label: "多め", people: 2 },
+    { id: "free2", label: "標準", people: 4 },
+    { id: "free3", label: "少なめ", people: 4 },
+    { id: "free4", label: "かなり少なめ", people: 0 }
+  ]
+};
+
+function buildGroups(mode: GroupMode, preset: PresetKey, previousGroups: RoleGroup[] = []) {
+  return groupTemplates[mode].map((template) => {
+    const previous = previousGroups.find((group) => group.id === template.id);
+    return {
+      ...template,
+      people: previous?.people ?? template.people,
+      label: previous?.label ?? template.label,
+      weight: previous?.weight ?? groupWeights[mode][preset][template.id] ?? 1
+    };
+  });
+}
+
 type FormState = {
+  mode: GroupMode;
   eventName: string;
   totalAmount: number;
   roundingUnit: number;
@@ -29,11 +144,12 @@ type FormState = {
 };
 
 const initialForm: FormState = {
+  mode: "role",
   eventName: "営業部 歓送迎会",
   totalAmount: 50000,
   roundingUnit: 500,
   note: "お手すきの際にご対応いただけますと幸いです。",
-  groups: defaultGroups
+  groups: buildGroups("role", "standard")
 };
 
 function copyText(text: string, onDone: () => void) {
@@ -121,6 +237,18 @@ function formatAdjustment(amount: number) {
   return `${sign}${formatYen(Math.abs(amount))}`;
 }
 
+function tiltLabel(weight: number) {
+  if (weight >= 1.2) {
+    return "傾斜：高め";
+  }
+
+  if (weight <= 0.9) {
+    return "傾斜：低め";
+  }
+
+  return "傾斜：標準";
+}
+
 export default function Home() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [preset, setPreset] = useState<PresetKey>("standard");
@@ -130,13 +258,15 @@ export default function Home() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as Partial<FormState>;
+        const storedMode = parsed.mode ?? initialForm.mode;
         setForm({
           ...initialForm,
+          mode: storedMode,
           eventName: parsed.eventName ?? initialForm.eventName,
           totalAmount: parsed.totalAmount ?? initialForm.totalAmount,
           roundingUnit: parsed.roundingUnit ?? initialForm.roundingUnit,
           note: parsed.note ?? initialForm.note,
-          groups: parsed.groups ?? initialForm.groups
+          groups: parsed.mode && parsed.groups ? parsed.groups : buildGroups(storedMode, preset)
         });
       } catch {
         window.localStorage.removeItem("kanji-seisan-form");
@@ -185,12 +315,12 @@ export default function Home() {
     "お疲れさまです。",
     "",
     `${form.eventName || "飲み会"}の精算案を作成いたしました。`,
-    "役職ごとの負担感を考慮して傾斜をつけ、端数は上位の区分で調整しております。",
+    "役職・年次に応じて傾斜をつけ、端数は上位の区分で調整しております。",
     "",
     tableText,
     "",
     "上記の金額感で違和感がないか、念のためご確認いただけますでしょうか。",
-    "特に傾斜の強さや若手の負担額について、調整した方がよい点があればご指示ください。",
+    "特に傾斜の強さや下位グループの負担額について、調整した方がよい点があればご指示ください。",
     "問題なければ、この内容で参加者へ案内いたします。"
   ].join("\n");
 
@@ -246,8 +376,16 @@ export default function Home() {
       ...current,
       groups: current.groups.map((group) => ({
         ...group,
-        weight: presetWeights[nextPreset][group.id] ?? group.weight
+        weight: groupWeights[current.mode][nextPreset][group.id] ?? group.weight
       }))
+    }));
+  }
+
+  function changeMode(nextMode: GroupMode) {
+    setForm((current) => ({
+      ...current,
+      mode: nextMode,
+      groups: buildGroups(nextMode, preset)
     }));
   }
 
@@ -276,7 +414,7 @@ export default function Home() {
           </div>
           <div className="max-w-3xl">
             <p className="text-base leading-8 text-slate-600 sm:text-lg">
-              領収金額を入れて、役職別の人数と傾斜を整えるだけ。上司確認用の文面、参加者への振込依頼、締めの御礼まで一気に作れます。
+              領収金額を入れて、役職・年次ごとの人数を整えるだけ。上司確認用の文面、参加者への振込依頼、締めの御礼まで一気に作れます。
             </p>
             <p className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold leading-5 text-slate-600 sm:hidden">
               入力内容はブラウザ内でのみ処理され、サーバーには送信されません。必要に応じて、この端末内にのみ保存されます。
@@ -344,8 +482,28 @@ export default function Home() {
           <div className="rounded-xl border border-line bg-white p-4 shadow-soft sm:p-6">
             <div className="mb-4 flex items-center gap-2">
               <Sparkles size={20} className="text-brand" aria-hidden="true" />
-              <h2 className="text-lg font-black">2. 役職ごとの傾斜</h2>
+              <h2 className="text-lg font-black">2. グループと人数</h2>
             </div>
+            <div className="mb-4 grid gap-2 sm:grid-cols-3">
+              {(Object.keys(modeLabels) as GroupMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => changeMode(mode)}
+                  className={`min-h-11 rounded-md border px-3 text-sm font-black transition ${
+                    form.mode === mode
+                      ? "border-brand bg-blue-50 text-brand"
+                      : "border-line bg-slate-50 text-ink hover:border-brand hover:bg-white"
+                  }`}
+                >
+                  {modeLabels[mode]}
+                </button>
+              ))}
+            </div>
+            <p className="mb-3 text-sm font-bold leading-6 text-slate-600">
+              細かい数字を決める必要はありません。分け方と人数を入れるだけで、傾斜の強さに応じて自動計算します。
+            </p>
+            <p className="mb-2 text-xs font-black text-slate-500">傾斜の強さ</p>
             <div className="mb-4 grid grid-cols-3 gap-2">
               {(Object.keys(presetLabels) as PresetKey[]).map((key) => (
                 <button
@@ -365,39 +523,57 @@ export default function Home() {
             <div className="space-y-3">
               {form.groups.map((group) => (
                 <div key={group.id} className="rounded-xl border border-line bg-slate-50 p-3">
-                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_96px_96px] sm:items-end">
-                  <label className="grid gap-1">
-                    <span className="text-xs font-bold text-slate-500">区分</span>
-                    <input
-                      value={group.label}
-                      onChange={(event) => updateGroup(group.id, { label: event.target.value })}
-                      className="min-h-11 w-full rounded-lg border border-line bg-white px-3 font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
-                    />
-                  </label>
-                    <div className="grid gap-3 sm:contents">
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_112px] sm:items-end">
+                    {form.mode === "free" ? (
                       <label className="grid gap-1">
-                        <span className="text-xs font-bold text-slate-500">人数</span>
+                        <span className="text-xs font-bold text-slate-500">グループ名</span>
                         <input
-                          inputMode="numeric"
-                          value={group.people}
-                          onChange={(event) => updateGroup(group.id, { people: numberValue(event.target.value) })}
-                          className="min-h-11 w-full rounded-lg border border-line bg-white px-3 text-center font-black outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                          value={group.label}
+                          onChange={(event) => updateGroup(group.id, { label: event.target.value })}
+                          className="min-h-11 w-full rounded-lg border border-line bg-white px-3 font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
                         />
                       </label>
-                      <label className="grid gap-1">
-                        <span className="text-xs font-bold text-slate-500">係数</span>
-                        <input
-                          inputMode="decimal"
-                          value={group.weight}
-                          onChange={(event) => updateGroup(group.id, { weight: Number(event.target.value) || 0 })}
-                          className="min-h-11 w-full rounded-lg border border-line bg-white px-3 text-center font-black outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
-                        />
-                      </label>
-                    </div>
+                    ) : (
+                      <div>
+                        <p className="text-base font-black text-ink">{group.label}</p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">{tiltLabel(group.weight)}</p>
+                      </div>
+                    )}
+                    <label className="grid gap-1">
+                      <span className="text-xs font-bold text-slate-500">人数</span>
+                      <input
+                        inputMode="numeric"
+                        value={group.people}
+                        onChange={(event) => updateGroup(group.id, { people: numberValue(event.target.value) })}
+                        className="min-h-11 w-full rounded-lg border border-line bg-white px-3 text-center font-black outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                      />
+                    </label>
                   </div>
                 </div>
               ))}
             </div>
+            <details className="mt-4 rounded-xl border border-line bg-white p-3">
+              <summary className="cursor-pointer text-sm font-black text-slate-600">詳細設定：傾斜を手動調整する</summary>
+              <div className="mt-3 grid gap-3">
+                {form.groups.map((group) => (
+                  <div key={group.id} className="grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_112px] sm:items-end">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-ink">{group.label}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-500">{tiltLabel(group.weight)}</p>
+                    </div>
+                    <label className="grid gap-1">
+                      <span className="text-xs font-bold text-slate-500">重み</span>
+                      <input
+                        inputMode="decimal"
+                        value={group.weight}
+                        onChange={(event) => updateGroup(group.id, { weight: Number(event.target.value) || 0 })}
+                        className="min-h-11 w-full rounded-lg border border-line bg-white px-3 text-center font-black outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </details>
           </div>
 
           <div className="lg:hidden">
@@ -507,7 +683,7 @@ function ResultCard({
           <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_72px_92px] items-center border-b border-line px-3 py-3 last:border-b-0">
             <div className="min-w-0">
               <p className="truncate font-black">{row.label}</p>
-              <p className="text-xs text-slate-500">{row.people}名 / 係数 {row.weight}</p>
+              <p className="text-xs text-slate-500">{row.people}名 / {tiltLabel(row.weight)}</p>
             </div>
             <p className="text-right text-sm font-black">{formatYen(row.finalPerPerson)}</p>
             <div className="text-right">
@@ -587,7 +763,7 @@ function SeoSection() {
         お疲れさまです。先日の飲み会の精算金額が確定しましたのでご案内いたします。恐れ入りますが、振込先をご確認のうえ、下記金額のお振込みをお願いいたします。
       </InfoCard>
       <InfoCard title="よくある質問">
-        参加者名や振込先の入力は不要です。まずは役職別の人数だけで精算案を作り、必要に応じて Excel や LINE に貼り付けて共有できます。入力内容はブラウザ内でのみ処理され、サーバーには送信されません。
+        参加者名や振込先の入力は不要です。まずは役職・年次ごとの人数だけで精算案を作り、必要に応じて Excel や LINE に貼り付けて共有できます。入力内容はブラウザ内でのみ処理され、サーバーには送信されません。
       </InfoCard>
     </section>
   );
