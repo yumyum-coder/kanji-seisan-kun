@@ -192,7 +192,7 @@ function MailtoButton({ subject, body }: { subject: string; body: string }) {
       className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-bold text-ink shadow-sm transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 sm:w-auto"
     >
       <Mail size={18} aria-hidden="true" />
-      メールで作成
+      メールを作成
     </a>
   );
 }
@@ -598,9 +598,9 @@ export default function Home() {
             </GeneratedBlock>
             <GeneratedBlock
               icon={<MessageSquareText size={20} />}
-              title="LINE/Teams向け短縮文"
+              title="LINE/Teams用短縮文"
               text={lineMessage}
-              buttonLabel="LINE用にコピー"
+              buttonLabel="LINE/Teams用にコピー"
             >
               <ShareButton text={lineMessage} />
             </GeneratedBlock>
