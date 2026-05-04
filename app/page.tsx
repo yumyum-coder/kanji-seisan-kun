@@ -397,15 +397,6 @@ function splitNames(value: string | undefined) {
     .filter(Boolean);
 }
 
-function replaceNameAt(value: string | undefined, index: number, name: string) {
-  const names = (value ?? "").split(/\r?\n/);
-  while (names.length <= index) {
-    names.push("");
-  }
-  names[index] = name;
-  return names.join("\n");
-}
-
 export default function Home() {
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("auto");
   const [form, setForm] = useState<FormState>(initialForm);
@@ -500,10 +491,6 @@ export default function Home() {
     `端数調整：${formatAdjustmentText(result.roundingAdjustment)}`
   ].join("\n");
 
-  const participantGroupLines = result.rows
-    .filter((row) => row.people > 0)
-    .map((row) => `${displayGroupLabel(row)}：${formatYenText(row.finalPerPerson)} × ${row.people}名 = ${formatYenText(row.subtotal)}`);
-  const hasParticipantNames = result.rows.some((row) => splitNames(form.participantNames[row.id]).length > 0);
   const individualPaymentRows = result.rows.flatMap<{ id: string; role: string; name: string; amount: number }>((row) => {
     const names = (form.participantNames[row.id] ?? "").split(/\r?\n/);
     const label = displayGroupLabel(row);
@@ -524,15 +511,8 @@ export default function Home() {
     individualPaymentRows,
     result.finalTotal
   );
-  const settlementText = hasParticipantNames ? personSettlementText : groupSettlementText;
-  const participantPaymentText = hasParticipantNames ? personSettlementText : [
-    `【${form.eventName || "飲み会"} 精算】`,
-    `合計金額：${formatYenText(form.totalAmount)}`,
-    "",
-    ...participantGroupLines,
-    "",
-    `回収予定額：${formatYenText(result.finalTotal)}`
-  ].join("\n");
+  const settlementText = personSettlementText;
+  const participantPaymentText = personSettlementText;
 
   const approvalMessage = [
     "お疲れさまです。",
@@ -540,14 +520,7 @@ export default function Home() {
     `${form.eventName || "飲み会"}の精算案を作成いたしました。`,
     "役職・年次に応じて傾斜をつけ、端数は上位の区分で調整しております。",
     "",
-    hasParticipantNames ? personSettlementText : groupSettlementText,
-    ...(hasParticipantNames
-      ? [
-          "",
-          "【区分別精算】",
-          groupSettlementText
-        ]
-      : []),
+    groupSettlementText,
     "",
     "上記の金額感で違和感がないか、念のためご確認いただけますでしょうか。",
     "特に傾斜の強さや下位グループの負担額について、調整した方がよい点があればご指示ください。",
@@ -564,7 +537,6 @@ export default function Home() {
     "",
     "振込先は別途ご案内いたします。",
     "",
-    form.note,
     "恐れ入りますが、ご確認のほどよろしくお願いいたします。"
   ].filter(Boolean).join("\n");
 
@@ -572,14 +544,11 @@ export default function Home() {
     `【${form.eventName || "飲み会"} 精算】`,
     "お疲れさまです。精算金額のご案内です。",
     "",
-    ...(hasParticipantNames
-      ? individualPaymentLines
-      : participantGroupLines),
-    ...(hasParticipantNames ? [`合計：${formatYenText(result.finalTotal)}`] : []),
+    ...individualPaymentLines,
+    `合計：${formatYenText(result.finalTotal)}`,
     "",
     "恐れ入りますが、該当金額のお振込みをお願いいたします。",
-    "振込先は別途ご案内いたします。",
-    form.note
+    "振込先は別途ご案内いたします。"
   ].filter(Boolean).join("\n");
 
   const paymentSubject = `【精算のお願い】${form.eventName || "飲み会"}`;
@@ -630,7 +599,6 @@ export default function Home() {
     personalPaymentTableText,
     "",
     "振込先は別途ご案内いたします。",
-    form.note,
     "よろしくお願いいたします。"
   ].filter(Boolean).join("\n");
   const personalLineMessage = [
@@ -641,7 +609,6 @@ export default function Home() {
     `合計：${formatYenText(personalCollectionTotal)}`,
     "",
     "振込先は別途ご案内いたします。",
-    form.note
   ].filter(Boolean).join("\n");
   const personalApprovalMessage = [
     "お疲れさまです。",
@@ -680,12 +647,12 @@ export default function Home() {
     updateGroup(id, { people: Math.max(0, Math.floor(nextPeople)) });
   }
 
-  function updateParticipantNameAt(groupId: string, index: number, name: string) {
+  function updateParticipantNames(groupId: string, value: string) {
     setForm((current) => ({
       ...current,
       participantNames: {
         ...current.participantNames,
-        [groupId]: replaceNameAt(current.participantNames[groupId], index, name)
+        [groupId]: value
       }
     }));
   }
@@ -770,9 +737,6 @@ export default function Home() {
   const autoRoleRows = form.mode === "role"
     ? form.groups.filter((group) => ["director", "manager", "management", "year10", "year7", "year4", "year3", "year2", "year1"].includes(group.id))
     : form.groups;
-  const addableRoleRows: RoleGroup[] = form.mode === "role"
-    ? []
-    : [];
   const mobileTotal = workflowMode === "auto" ? result.finalTotal : personalCollectionTotal;
   const mobileDifference = workflowMode === "auto" ? result.finalTotal - form.totalAmount : personalDifference;
   const mobileIsValid = mobileDifference === 0;
@@ -890,15 +854,6 @@ export default function Home() {
                   </label>
                 )}
               </div>
-              <label className="grid gap-1.5">
-                <span className="text-xs font-bold text-ink-sub">任意メモ</span>
-                <textarea
-                  value={form.note}
-                  onChange={(event) => setForm({ ...form, note: event.target.value })}
-                  className="min-h-16 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
-                  placeholder="振込期限や補足を入れられます"
-                />
-              </label>
             </div>
           </div>
 
@@ -948,9 +903,15 @@ export default function Home() {
               ))}
             </div>
             <div className="space-y-1.5">
-              {autoRoleRows.map((group) => (
+              {autoRoleRows.map((group) => {
+                const label = displayGroupLabel(group);
+                const namesValue = form.participantNames[group.id] ?? "";
+                const enteredNameCount = splitNames(namesValue).length;
+                const hasTooManyNames = enteredNameCount > group.people;
+
+                return (
                 <div key={group.id} className={`border-[1.5px] border-[#111827] p-1.5 ${group.people > 0 ? "bg-white" : "bg-[#eee9dd] text-muted"}`}>
-                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_152px] sm:items-center">
+                  <div className="grid gap-2 sm:grid-cols-[minmax(0,120px)_152px_minmax(180px,1fr)] sm:items-start">
                     {form.mode === "free" ? (
                       <label className="grid gap-1">
                         <span className="text-xs font-bold text-muted">グループ名</span>
@@ -962,7 +923,7 @@ export default function Home() {
                       </label>
                     ) : (
                       <div>
-                        <p className="inline-flex min-h-8 items-center border border-[#111827] bg-[#f7f4ec] px-2 text-sm font-bold text-ink">{displayGroupLabel(group)}</p>
+                        <p className="inline-flex min-h-8 items-center border border-[#111827] bg-[#f7f4ec] px-2 text-sm font-bold text-ink">{label}</p>
                       </div>
                     )}
                     <div className="flex items-center justify-between gap-2 sm:justify-end">
@@ -970,13 +931,13 @@ export default function Home() {
                         type="button"
                         onClick={() => updatePeople(group.id, group.people - 1)}
                         className="grid size-11 shrink-0 place-items-center rounded-none border-[1.5px] border-[#111827] bg-white text-ink transition hover:bg-[#f7f4ec] focus:outline-none focus:ring-2 focus:ring-brand/30 sm:size-8"
-                        aria-label={`${displayGroupLabel(group)}を1名減らす`}
+                        aria-label={`${label}を1名減らす`}
                       >
                         <Minus size={15} aria-hidden="true" />
                       </button>
                       <input
                         inputMode="numeric"
-                        aria-label={`${displayGroupLabel(group)}の人数`}
+                        aria-label={`${label}の人数`}
                         value={group.people}
                         onChange={(event) => updatePeople(group.id, numberValue(event.target.value))}
                         className="h-11 w-14 rounded-none border-[1.5px] border-[#111827] bg-white px-2 text-center text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:h-8"
@@ -985,63 +946,37 @@ export default function Home() {
                         type="button"
                         onClick={() => updatePeople(group.id, group.people + 1)}
                         className="grid size-11 shrink-0 place-items-center rounded-none border-[1.5px] border-[#111827] bg-white text-ink transition hover:bg-[#f7f4ec] focus:outline-none focus:ring-2 focus:ring-brand/30 sm:size-8"
-                        aria-label={`${displayGroupLabel(group)}を1名増やす`}
+                        aria-label={`${label}を1名増やす`}
                       >
                         <Plus size={15} aria-hidden="true" />
                       </button>
                     </div>
+                    <label className="grid gap-1">
+                      <span className="text-xs font-bold text-muted">名前（任意）</span>
+                      {group.people >= 2 ? (
+                        <textarea
+                          value={namesValue}
+                          onChange={(event) => updateParticipantNames(group.id, event.target.value)}
+                          className="min-h-20 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-16"
+                          placeholder={"山田さん\n佐藤さん"}
+                        />
+                      ) : (
+                        <input
+                          value={namesValue}
+                          onChange={(event) => updateParticipantNames(group.id, event.target.value)}
+                          className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-8"
+                          placeholder={numberedName(label, 0)}
+                        />
+                      )}
+                      {hasTooManyNames && (
+                        <span className="text-xs font-bold text-warn">人数より名前が多く入力されています</span>
+                      )}
+                    </label>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
-            {addableRoleRows.length > 0 && (
-              <details className="mt-2 border-2 border-dashed border-[#111827] bg-white p-2">
-                <summary className="cursor-pointer text-sm font-bold text-ink">+ 区分を追加</summary>
-                <div className="mt-2 grid gap-1.5">
-                  {addableRoleRows.map((group) => (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => updatePeople(group.id, 1)}
-                      className="min-h-10 rounded-none border border-[#111827] bg-[#f7f4ec] px-3 text-left text-sm font-bold text-ink hover:bg-white sm:min-h-8"
-                    >
-                      {displayGroupLabel(group)}
-                    </button>
-                  ))}
-                </div>
-              </details>
-            )}
-            <details className="mt-3 border-[1.5px] border-[#111827] bg-white p-3">
-              <summary className="cursor-pointer text-sm font-bold text-ink-sub">参加者名を入力する（任意）</summary>
-              <p className="mt-2 text-xs font-bold leading-5 text-muted">
-                名前を入れると参加者向け文面が個別金額の一覧になります。名前を入力した場合も、内容はブラウザ内でのみ処理されます。
-              </p>
-              <div className="mt-3 grid gap-2">
-                {form.groups.filter((group) => group.people > 0).map((group) => {
-                  const names = (form.participantNames[group.id] ?? "").split(/\r?\n/);
-
-                  return (
-                    <div key={group.id} className="grid gap-2 border border-[#111827] bg-[#f7f4ec] p-2.5">
-                      <p className="text-xs font-bold text-ink-sub">{displayGroupLabel(group)}</p>
-                      {Array.from({ length: group.people }).map((_, index) => (
-                        <input
-                          key={`${group.id}-${index}`}
-                          value={names[index] ?? ""}
-                          onChange={(event) => updateParticipantNameAt(group.id, index, event.target.value)}
-                          className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
-                          placeholder={numberedName(displayGroupLabel(group), index)}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-                {result.totalPeople === 0 && (
-                  <p className="border border-[#111827] bg-[#f7f4ec] px-2.5 py-2 text-xs font-bold text-muted">
-                    人数を1名以上にすると、名前入力欄が表示されます。
-                  </p>
-                )}
-              </div>
-            </details>
             <details className="mt-3 border-[1.5px] border-[#111827] bg-white p-3">
               <summary className="cursor-pointer text-sm font-bold text-ink-sub">詳細設定：傾斜を手動調整する</summary>
               <div className="mt-3 grid gap-2">
@@ -1083,7 +1018,7 @@ export default function Home() {
                 result={result}
                 totalAmount={form.totalAmount}
                 tableText={settlementText}
-                paymentRows={hasParticipantNames ? individualPaymentRows : undefined}
+                paymentRows={individualPaymentRows}
                 validationMessages={validationMessages}
               />
             ) : (
@@ -1161,7 +1096,7 @@ export default function Home() {
               result={result}
               totalAmount={form.totalAmount}
               tableText={settlementText}
-              paymentRows={hasParticipantNames ? individualPaymentRows : undefined}
+              paymentRows={individualPaymentRows}
               validationMessages={validationMessages}
             />
           ) : (
