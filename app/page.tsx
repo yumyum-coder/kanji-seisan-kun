@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Check, ChevronUp, Clipboard, Mail, MessageSquareText, Minus, Pencil, Plus, Send, Share2, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Check, ChevronUp, Clipboard, Mail, MessageSquareText, Minus, Plus, Send, Share2, Trash2 } from "lucide-react";
 import {
   calculateSettlement,
   formatYen,
@@ -233,7 +233,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1600);
       })}
-      className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:min-h-9 sm:w-auto"
+      className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-none border border-[#111827] bg-brand px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand/30 sm:min-h-8 sm:w-auto"
       aria-label={`${label}をコピー`}
     >
       {copied ? <Check size={15} aria-hidden="true" /> : <Clipboard size={15} aria-hidden="true" />}
@@ -248,7 +248,7 @@ function MailtoButton({ subject, body }: { subject: string; body: string }) {
   return (
     <a
       href={href}
-      className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:min-h-9 sm:w-auto"
+      className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-none border border-[#111827] bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-[#f7f4ec] focus:outline-none focus:ring-2 focus:ring-brand/30 sm:min-h-8 sm:w-auto"
     >
       <Mail size={15} aria-hidden="true" />
       メールを作成
@@ -275,7 +275,7 @@ function ShareButton({ text }: { text: string }) {
 
         copyText(text, done);
       }}
-      className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:min-h-9 sm:w-auto"
+      className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-none border border-[#111827] bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-[#f7f4ec] focus:outline-none focus:ring-2 focus:ring-brand/30 sm:min-h-8 sm:w-auto"
     >
       {shared ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
       {shared ? "共有準備済み" : "LINEで共有"}
@@ -570,6 +570,7 @@ export default function Home() {
     .join("\n");
   const personalPaymentRows = personalRows.map((row) => ({
     id: row.id,
+    role: row.roleLabel,
     name: row.displayName,
     amount: row.amount
   }));
@@ -781,27 +782,27 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-paper pb-24 lg:pb-0">
-      <section className="border-b border-line bg-white">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-1.5 px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2">
-            <div className="grid size-7 shrink-0 place-items-center rounded-md border border-line bg-surface text-brand">
-              <ShieldCheck size={16} aria-hidden="true" />
-            </div>
-            <p className="text-base font-bold text-ink">幹事精算くん</p>
+    <main className="min-h-screen bg-[#f7f4ec] pb-24 text-ink lg:pb-0">
+      <section className="px-3 pt-3 sm:px-5">
+        <div className="mx-auto w-full max-w-6xl border-2 border-[#111827] bg-white">
+          <div className="flex items-center justify-between gap-3 border-b-2 border-[#111827] px-3 py-2">
+            <p className="text-[18px] font-bold leading-6 tracking-normal text-ink">幹事精算くん</p>
+            <span className="shrink-0 border border-[#111827] bg-[#f7f4ec] px-2 py-0.5 text-[11px] font-bold leading-5 text-ink">
+              ログイン不要 / 外部送信なし
+            </span>
           </div>
-          <p className="text-[11px] font-bold leading-5 text-muted">
+          <p className="px-3 py-1.5 text-xs font-normal leading-5 text-ink-sub">
             入力内容はブラウザ内で処理され、サーバーには送信されません。
           </p>
         </div>
       </section>
 
-      <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_370px] lg:px-8">
-        <section className="space-y-4">
-          <div className="rounded-md border border-line bg-white p-4">
-            <div className="mb-3 flex items-center gap-2 border-b border-line pb-2">
-              <Pencil size={16} className="text-brand" aria-hidden="true" />
-              <h2 className="text-base font-bold">領収金額と会の名前</h2>
+      <div className="mx-auto grid w-full max-w-6xl gap-3 border-x-2 border-b-2 border-[#111827] bg-[#fffdf7] px-3 py-3 sm:px-5 lg:grid-cols-[minmax(0,1fr)_370px]">
+        <section className="space-y-3">
+          <div className="border-2 border-[#111827] bg-white p-3">
+            <div className="mb-3 flex items-center gap-2 border-b-2 border-[#111827] pb-2">
+              <span className="size-2.5 shrink-0 border border-[#111827] bg-brand" aria-hidden="true" />
+              <h2 className="text-[15px] font-bold">領収金額と会の名前</h2>
             </div>
             <div className="grid gap-3">
               <label className="grid gap-1.5">
@@ -809,7 +810,7 @@ export default function Home() {
                 <input
                   value={form.eventName}
                   onChange={(event) => setForm({ ...form, eventName: event.target.value })}
-                  className="min-h-10 rounded border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
+                  className="min-h-10 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                   placeholder="例：営業部 歓送迎会"
                 />
               </label>
@@ -820,22 +821,22 @@ export default function Home() {
                     inputMode="numeric"
                     value={form.totalAmount || ""}
                     onChange={(event) => setForm({ ...form, totalAmount: numberValue(event.target.value) })}
-                    className="min-h-10 rounded border border-line bg-white px-3 text-base font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
+                    className="min-h-10 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-base font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                     placeholder="50000"
                   />
                 </label>
                 <div className="grid gap-1.5 sm:col-span-2">
                   <span className="text-xs font-bold text-ink-sub">精算方法</span>
-                  <div className="grid gap-1.5 sm:grid-cols-2">
+                  <div className="grid gap-0 border-[1.5px] border-[#111827] sm:grid-cols-2">
                     {(Object.keys(workflowLabels) as WorkflowMode[]).map((mode) => (
                       <button
                         key={mode}
                         type="button"
                         onClick={() => setWorkflowMode(mode)}
-                        className={`min-h-11 rounded-md border px-3 text-sm font-bold transition sm:min-h-10 ${
+                        className={`min-h-11 border-[#111827] px-3 text-sm font-bold transition sm:min-h-9 sm:border-r sm:last:border-r-0 ${
                           workflowMode === mode
-                            ? "border-brand bg-brand text-white"
-                            : "border-line bg-surface text-ink hover:border-brand hover:bg-white"
+                            ? "bg-brand text-white"
+                            : "bg-white text-ink hover:bg-[#f7f4ec]"
                         }`}
                       >
                         {workflowLabels[mode]}
@@ -849,7 +850,7 @@ export default function Home() {
                     <select
                       value={form.roundingUnit}
                       onChange={(event) => setForm({ ...form, roundingUnit: Number(event.target.value) })}
-                      className="min-h-10 rounded border border-line bg-white px-3 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
+                      className="min-h-10 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                     >
                       {roundingUnits.map((unit) => (
                         <option key={unit} value={unit}>{unit.toLocaleString("ja-JP")}円単位</option>
@@ -863,7 +864,7 @@ export default function Home() {
                 <textarea
                   value={form.note}
                   onChange={(event) => setForm({ ...form, note: event.target.value })}
-                  className="min-h-16 rounded border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
+                  className="min-h-16 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
                   placeholder="振込期限や補足を入れられます"
                 />
               </label>
@@ -871,41 +872,41 @@ export default function Home() {
           </div>
 
           {workflowMode === "auto" ? (
-          <div className="rounded-md border border-line bg-white p-4">
-            <div className="mb-3 flex items-center gap-2 border-b border-line pb-2">
-              <Sparkles size={16} className="text-brand" aria-hidden="true" />
-              <h2 className="text-base font-bold">参加者の内訳</h2>
+          <div className="border-2 border-[#111827] bg-white p-3">
+            <div className="mb-2.5 flex items-center gap-2 border-b-2 border-[#111827] pb-2">
+              <span className="size-2.5 shrink-0 border border-[#111827] bg-brand" aria-hidden="true" />
+              <h2 className="text-[15px] font-bold">参加者の内訳</h2>
             </div>
-            <div className="mb-3 grid gap-1.5 sm:grid-cols-3">
+            <div className="mb-2.5 grid gap-1.5 sm:grid-cols-3">
               {(Object.keys(modeLabels) as GroupMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => changeMode(mode)}
-                  className={`min-h-11 rounded-md border px-2.5 text-xs font-bold transition sm:min-h-9 ${
+                  className={`min-h-10 rounded-none border-[1.5px] border-[#111827] px-2.5 text-xs font-bold transition sm:min-h-8 ${
                     form.mode === mode
-                      ? "border-brand bg-slate-100 text-brand"
-                      : "border-line bg-surface text-ink hover:border-brand hover:bg-white"
+                      ? "bg-brand text-white"
+                      : "bg-white text-ink hover:bg-[#f7f4ec]"
                   }`}
                 >
                   {modeLabels[mode]}
                 </button>
               ))}
             </div>
-            <p className="mb-3 text-sm font-bold leading-6 text-ink-sub">
+            <p className="mb-2.5 text-sm font-normal leading-6 text-ink-sub">
               参加する役職・年次の人数を調整してください。金額の差は選んだ強さに応じて自動計算します。
             </p>
             <p className="mb-2 text-xs font-bold text-muted">傾斜の強さ</p>
-            <div className="mb-3 grid grid-cols-3 gap-1.5">
+            <div className="mb-2.5 grid grid-cols-3 gap-1.5">
               {(Object.keys(presetLabels) as PresetKey[]).map((key) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => applyPreset(key)}
-                  className={`min-h-11 rounded-md border px-2.5 py-1 text-xs font-bold transition sm:min-h-9 ${
+                  className={`min-h-11 rounded-none border-[1.5px] border-[#111827] px-2 py-1 text-xs font-bold transition sm:min-h-9 ${
                     preset === key
-                      ? "border-brand bg-brand text-white"
-                      : "border-line bg-surface text-ink hover:border-brand hover:bg-white"
+                      ? "bg-brand text-white"
+                      : "bg-white text-ink hover:bg-[#f7f4ec]"
                   }`}
                 >
                   <span className="block">{presetLabels[key]}</span>
@@ -915,9 +916,9 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {autoRoleRows.map((group) => (
-                <div key={group.id} className={`rounded-md border border-line p-1.5 ${group.people > 0 ? "bg-surface" : "bg-surface/60 text-muted"}`}>
+                <div key={group.id} className={`border-[1.5px] border-[#111827] p-1.5 ${group.people > 0 ? "bg-white" : "bg-[#eee9dd] text-muted"}`}>
                   <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_152px] sm:items-center">
                     {form.mode === "free" ? (
                       <label className="grid gap-1">
@@ -925,19 +926,19 @@ export default function Home() {
                         <input
                           value={group.label}
                           onChange={(event) => updateGroup(group.id, { label: event.target.value })}
-                          className="min-h-11 w-full rounded-md border border-line bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-8"
+                          className="min-h-11 w-full rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-8"
                         />
                       </label>
                     ) : (
                       <div>
-                        <p className="text-sm font-bold text-ink">{displayGroupLabel(group)}</p>
+                        <p className="inline-flex min-h-8 items-center border border-[#111827] bg-[#f7f4ec] px-2 text-sm font-bold text-ink">{displayGroupLabel(group)}</p>
                       </div>
                     )}
                     <div className="flex items-center justify-between gap-2 sm:justify-end">
                       <button
                         type="button"
                         onClick={() => updatePeople(group.id, group.people - 1)}
-                        className="grid size-11 shrink-0 place-items-center rounded-md border border-line bg-white text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:size-8"
+                        className="grid size-11 shrink-0 place-items-center rounded-none border-[1.5px] border-[#111827] bg-white text-ink transition hover:bg-[#f7f4ec] focus:outline-none focus:ring-2 focus:ring-brand/30 sm:size-8"
                         aria-label={`${displayGroupLabel(group)}を1名減らす`}
                       >
                         <Minus size={15} aria-hidden="true" />
@@ -947,12 +948,12 @@ export default function Home() {
                         aria-label={`${displayGroupLabel(group)}の人数`}
                         value={group.people}
                         onChange={(event) => updatePeople(group.id, numberValue(event.target.value))}
-                        className="h-11 w-14 rounded-md border border-line bg-white px-2 text-center text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:h-8"
+                        className="h-11 w-14 rounded-none border-[1.5px] border-[#111827] bg-white px-2 text-center text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:h-8"
                       />
                       <button
                         type="button"
                         onClick={() => updatePeople(group.id, group.people + 1)}
-                        className="grid size-11 shrink-0 place-items-center rounded-md border border-line bg-white text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:size-8"
+                        className="grid size-11 shrink-0 place-items-center rounded-none border-[1.5px] border-[#111827] bg-white text-ink transition hover:bg-[#f7f4ec] focus:outline-none focus:ring-2 focus:ring-brand/30 sm:size-8"
                         aria-label={`${displayGroupLabel(group)}を1名増やす`}
                       >
                         <Plus size={15} aria-hidden="true" />
@@ -963,15 +964,15 @@ export default function Home() {
               ))}
             </div>
             {addableRoleRows.length > 0 && (
-              <details className="mt-2 rounded-md border border-dashed border-line bg-white p-2">
-                <summary className="cursor-pointer text-sm font-bold text-brand">+ 区分を追加</summary>
+              <details className="mt-2 border-2 border-dashed border-[#111827] bg-white p-2">
+                <summary className="cursor-pointer text-sm font-bold text-ink">+ 区分を追加</summary>
                 <div className="mt-2 grid gap-1.5">
                   {addableRoleRows.map((group) => (
                     <button
                       key={group.id}
                       type="button"
                       onClick={() => updatePeople(group.id, 1)}
-                      className="min-h-11 rounded-md border border-line bg-surface px-3 text-left text-sm font-bold text-ink hover:border-brand hover:bg-white sm:min-h-9"
+                      className="min-h-10 rounded-none border border-[#111827] bg-[#f7f4ec] px-3 text-left text-sm font-bold text-ink hover:bg-white sm:min-h-8"
                     >
                       {displayGroupLabel(group)}
                     </button>
@@ -979,7 +980,7 @@ export default function Home() {
                 </div>
               </details>
             )}
-            <details className="mt-3 rounded-md border border-line bg-white p-3">
+            <details className="mt-3 border-[1.5px] border-[#111827] bg-white p-3">
               <summary className="cursor-pointer text-sm font-bold text-ink-sub">参加者名を入力する（任意）</summary>
               <p className="mt-2 text-xs font-bold leading-5 text-muted">
                 名前を入れると参加者向け文面が個別金額の一覧になります。名前を入力した場合も、内容はブラウザ内でのみ処理されます。
@@ -989,14 +990,14 @@ export default function Home() {
                   const names = (form.participantNames[group.id] ?? "").split(/\r?\n/);
 
                   return (
-                    <div key={group.id} className="grid gap-2 rounded-md border border-line bg-surface p-2.5">
+                    <div key={group.id} className="grid gap-2 border border-[#111827] bg-[#f7f4ec] p-2.5">
                       <p className="text-xs font-bold text-ink-sub">{displayGroupLabel(group)}</p>
                       {Array.from({ length: group.people }).map((_, index) => (
                         <input
                           key={`${group.id}-${index}`}
                           value={names[index] ?? ""}
                           onChange={(event) => updateParticipantNameAt(group.id, index, event.target.value)}
-                          className="min-h-11 rounded-md border border-line bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
+                          className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                           placeholder={numberedName(displayGroupLabel(group), index)}
                         />
                       ))}
@@ -1004,17 +1005,17 @@ export default function Home() {
                   );
                 })}
                 {result.totalPeople === 0 && (
-                  <p className="rounded border border-line bg-surface px-2.5 py-2 text-xs font-bold text-muted">
+                  <p className="border border-[#111827] bg-[#f7f4ec] px-2.5 py-2 text-xs font-bold text-muted">
                     人数を1名以上にすると、名前入力欄が表示されます。
                   </p>
                 )}
               </div>
             </details>
-            <details className="mt-3 rounded-md border border-line bg-white p-3">
+            <details className="mt-3 border-[1.5px] border-[#111827] bg-white p-3">
               <summary className="cursor-pointer text-sm font-bold text-ink-sub">詳細設定：傾斜を手動調整する</summary>
               <div className="mt-3 grid gap-2">
                 {form.groups.map((group) => (
-                  <div key={group.id} className="grid gap-2 rounded-md border border-line bg-surface p-2.5 sm:grid-cols-[minmax(0,1fr)_96px] sm:items-end">
+                  <div key={group.id} className="grid gap-2 border border-[#111827] bg-[#f7f4ec] p-2.5 sm:grid-cols-[minmax(0,1fr)_96px] sm:items-end">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-ink">{displayGroupLabel(group)}</p>
                       <p className="mt-1 text-xs font-bold text-muted">通常は変更不要です</p>
@@ -1025,7 +1026,7 @@ export default function Home() {
                         inputMode="decimal"
                         value={group.weight}
                         onChange={(event) => updateGroup(group.id, { weight: Number(event.target.value) || 0 })}
-                        className="min-h-11 w-full rounded-md border border-line bg-white px-2.5 text-center text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
+                        className="min-h-11 w-full rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-center text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                       />
                     </label>
                   </div>
@@ -1066,25 +1067,28 @@ export default function Home() {
             )}
           </div>
 
-          <div className="rounded-md border border-line bg-white p-4">
-            <h2 className="mb-3 border-b border-line pb-2 text-base font-bold">送る文面</h2>
-            <div className="-mx-1 mb-3 flex gap-1 overflow-x-auto px-1 pb-1">
+          <div className="border-2 border-[#111827] bg-white p-3">
+            <div className="mb-3 flex items-center gap-2 border-b-2 border-[#111827] pb-2">
+              <span className="size-2.5 shrink-0 border border-[#111827] bg-brand" aria-hidden="true" />
+              <h2 className="text-[15px] font-bold">送る文面</h2>
+            </div>
+            <div className="-mx-1 mb-3 flex gap-4 overflow-x-auto border-b border-[#111827] px-1">
               {messageTabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveMessageTab(tab.id)}
-                  className={`min-h-11 shrink-0 rounded-md border px-3 text-sm font-bold transition ${
+                  className={`min-h-10 shrink-0 border-b-2 px-1 text-sm font-bold transition ${
                     activeMessageTab === tab.id
-                      ? "border-brand bg-brand text-white"
-                      : "border-line bg-surface text-ink hover:border-brand hover:bg-white"
+                      ? "border-brand text-brand"
+                      : "border-transparent text-ink hover:border-[#111827]"
                   }`}
                 >
                   {tab.label}
                 </button>
               ))}
             </div>
-            <div className="rounded-md border border-line bg-surface p-3">
+            <div className="border border-[#111827] bg-[#f7f4ec] p-2.5">
               <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-1.5 text-sm font-bold text-ink">
                   <span className="text-brand">
@@ -1101,7 +1105,7 @@ export default function Home() {
                   {activeMessage.id === "chat" && <ShareButton text={activeMessage.text} />}
                 </div>
               </div>
-              <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-line bg-white p-3 text-sm leading-6 text-ink">
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap border border-[#111827] bg-white p-2.5 text-sm leading-6 text-ink">
                 {activeMessage.text}
               </pre>
             </div>
@@ -1111,7 +1115,7 @@ export default function Home() {
             <button
               type="button"
               onClick={resetInputs}
-              className="min-h-11 rounded-md border border-line bg-transparent px-3 py-1.5 text-xs font-bold text-muted transition hover:border-line-strong hover:bg-white hover:text-ink focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:min-h-9"
+              className="min-h-10 rounded-none border border-[#111827] bg-transparent px-3 py-1.5 text-xs font-bold text-ink-sub transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 sm:min-h-8"
             >
               入力をリセット
             </button>
@@ -1144,7 +1148,7 @@ export default function Home() {
       <button
         type="button"
         onClick={scrollToResult}
-        className="fixed inset-x-0 bottom-0 z-30 flex min-h-16 items-center justify-between border-t border-line bg-white px-4 py-3 text-left shadow-none lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex min-h-16 items-center justify-between border-t-2 border-[#111827] bg-white px-4 py-3 text-left lg:hidden"
         style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
       >
         <span>
@@ -1152,7 +1156,7 @@ export default function Home() {
           <span className="block text-lg font-bold text-ink">{formatYen(mobileTotal)}</span>
         </span>
         <span className="flex items-center gap-2">
-          <span className={`inline-flex min-h-8 items-center gap-1 rounded-md px-2.5 text-xs font-bold ${
+          <span className={`inline-flex min-h-8 items-center gap-1 border border-[#111827] px-2.5 text-xs font-bold ${
             mobileIsValid ? "bg-ok-soft text-ok" : "bg-warn-soft text-warn"
           }`}>
             {mobileIsValid && <Check size={14} aria-hidden="true" />}
@@ -1186,12 +1190,12 @@ function PersonalModeInputs({
   onParticipantRemove: (id: string) => void;
 }) {
   return (
-    <div className="rounded-md border border-line bg-white p-4">
-      <div className="mb-3 flex items-center gap-2 border-b border-line pb-2">
-        <Sparkles size={16} className="text-brand" aria-hidden="true" />
-        <h2 className="text-base font-bold">参加者の内訳</h2>
+    <div className="border-2 border-[#111827] bg-white p-3">
+      <div className="mb-3 flex items-center gap-2 border-b-2 border-[#111827] pb-2">
+        <span className="size-2.5 shrink-0 border border-[#111827] bg-brand" aria-hidden="true" />
+        <h2 className="text-[15px] font-bold">参加者の内訳</h2>
       </div>
-      <p className="mb-3 text-sm font-bold leading-6 text-ink-sub">
+      <p className="mb-3 text-sm font-normal leading-6 text-ink-sub">
         役職ごとの会費を決めて、参加者名と役職を入力します。Excelの精算表を作る感覚で、個人別の案内文まで作れます。
       </p>
 
@@ -1199,13 +1203,13 @@ function PersonalModeInputs({
         <h3 className="mb-2 text-xs font-bold text-muted">役職別会費</h3>
         <div className="grid gap-2">
           {roles.map((role) => (
-            <div key={role.id} className="grid gap-2 rounded-md border border-line bg-surface p-2.5 sm:grid-cols-[minmax(0,1fr)_128px] sm:items-end">
+            <div key={role.id} className="grid gap-2 border-[1.5px] border-[#111827] bg-[#f7f4ec] p-2 sm:grid-cols-[minmax(0,1fr)_128px] sm:items-end">
               <label className="grid gap-1">
                 <span className="text-xs font-bold text-muted">役職</span>
                 <input
                   value={role.label}
                   onChange={(event) => onRoleChange(role.id, { label: event.target.value })}
-                  className="min-h-11 rounded-md border border-line bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
+                  className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                 />
               </label>
               <label className="grid gap-1">
@@ -1214,7 +1218,7 @@ function PersonalModeInputs({
                   inputMode="numeric"
                   value={role.fee || ""}
                   onChange={(event) => onRoleChange(role.id, { fee: numberValue(event.target.value) })}
-                  className="min-h-11 rounded-md border border-line bg-white px-2.5 text-right text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
+                  className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-right text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                   placeholder="7000"
                 />
               </label>
@@ -1229,7 +1233,7 @@ function PersonalModeInputs({
           <button
             type="button"
             onClick={onParticipantAdd}
-            className="inline-flex min-h-11 items-center justify-center gap-1 rounded-md border border-line bg-white px-2.5 text-xs font-bold text-ink transition hover:border-brand hover:text-brand sm:min-h-8"
+            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-none border border-[#111827] bg-white px-2.5 text-xs font-bold text-ink transition hover:bg-[#f7f4ec] sm:min-h-8"
           >
             <Plus size={14} aria-hidden="true" />
             追加
@@ -1237,14 +1241,14 @@ function PersonalModeInputs({
         </div>
         <div className="grid gap-2">
           {participants.map((participant, index) => (
-            <div key={participant.id} className="rounded-md border border-line bg-surface p-2.5">
+            <div key={participant.id} className="border-[1.5px] border-[#111827] bg-[#f7f4ec] p-2">
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_132px_auto] sm:items-end">
                 <label className="grid gap-1">
                   <span className="text-xs font-bold text-muted">氏名</span>
                   <input
                     value={participant.name}
                     onChange={(event) => onParticipantChange(participant.id, { name: event.target.value })}
-                    className="min-h-11 rounded-md border border-line bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
+                    className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                     placeholder={`参加者${index + 1}`}
                   />
                 </label>
@@ -1253,7 +1257,7 @@ function PersonalModeInputs({
                   <select
                     value={participant.roleId}
                     onChange={(event) => onParticipantChange(participant.id, { roleId: event.target.value })}
-                    className="min-h-11 rounded-md border border-line bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
+                    className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                   >
                     {roles.map((role) => (
                       <option key={role.id} value={role.id}>{role.label || "未設定"}</option>
@@ -1264,14 +1268,14 @@ function PersonalModeInputs({
                   <button
                     type="button"
                     onClick={() => onParticipantDuplicate(participant)}
-                    className="min-h-11 rounded-md border border-line bg-white px-2 text-xs font-bold text-ink-sub transition hover:border-brand hover:text-brand sm:min-h-9"
+                    className="min-h-11 rounded-none border border-[#111827] bg-white px-2 text-xs font-bold text-ink-sub transition hover:bg-[#f7f4ec] sm:min-h-9"
                   >
                     複製
                   </button>
                   <button
                     type="button"
                     onClick={() => onParticipantRemove(participant.id)}
-                    className="grid min-h-11 place-items-center rounded-md border border-line bg-white px-2 text-muted transition hover:border-warn-soft hover:text-warn sm:min-h-9"
+                    className="grid min-h-11 place-items-center rounded-none border border-[#111827] bg-white px-2 text-muted transition hover:bg-warn-soft hover:text-warn sm:min-h-9"
                     aria-label={`${participant.name || `参加者${index + 1}`}を削除`}
                   >
                     <Trash2 size={14} aria-hidden="true" />
@@ -1281,7 +1285,7 @@ function PersonalModeInputs({
             </div>
           ))}
           {participants.length === 0 && (
-            <p className="rounded border border-line bg-surface px-2.5 py-2 text-xs font-bold text-muted">
+            <p className="border border-[#111827] bg-[#f7f4ec] px-2.5 py-2 text-xs font-bold text-muted">
               参加者を追加すると、個人別の精算表を作成できます。
             </p>
           )}
@@ -1303,44 +1307,50 @@ function PersonalResultCard({
   participantCount: number;
   collectionTotal: number;
   difference: number;
-  rows: Array<{ id: string; name: string; amount: number }>;
+  rows: Array<{ id: string; role?: string; name: string; amount: number }>;
   tableText: string;
 }) {
   return (
-    <div className="rounded-md border border-line bg-white p-4">
-      <div className="mb-3 flex items-center justify-between gap-3 border-b border-line pb-2">
-        <h2 className="text-base font-bold">精算結果</h2>
-        <span className={`shrink-0 text-xs font-bold ${difference === 0 ? "text-brand" : "text-brand"}`}>
+    <div className="border-2 border-[#111827] bg-white p-3">
+      <div className="mb-3 flex items-center justify-between gap-3 border-b-2 border-[#111827] pb-2">
+        <div className="flex items-center gap-2">
+          <span className="size-2.5 shrink-0 border border-[#111827] bg-brand" aria-hidden="true" />
+          <h2 className="text-[15px] font-bold">精算結果</h2>
+        </div>
+        <span className={`shrink-0 border border-[#111827] px-2 py-0.5 text-xs font-bold ${difference === 0 ? "bg-ok-soft text-ok" : "bg-warn-soft text-warn"}`}>
           {difference === 0 ? "差額なし" : "差額あり"}
         </span>
       </div>
-      <div className="mb-3 rounded-md border border-line bg-surface p-3">
+      <div className="mb-3 border border-[#111827] bg-[#f7f4ec] p-2.5">
         <p className="text-xs font-bold text-muted">回収予定額</p>
         <p className="mt-1 text-[24px] font-bold tracking-normal text-ink [font-variant-numeric:tabular-nums]">{formatYen(collectionTotal)}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-md border border-line bg-white px-2.5 py-2">
+          <div className="border border-[#111827] bg-white px-2.5 py-2">
             <p className="text-xs font-bold text-muted">参加人数</p>
             <p className="font-bold text-ink">{participantCount}名</p>
           </div>
-          <div className="rounded-md border border-line bg-white px-2.5 py-2">
+          <div className="border border-[#111827] bg-white px-2.5 py-2">
             <p className="text-xs font-bold text-muted">差額</p>
             <p className="font-bold text-ink">{formatAdjustment(difference)}</p>
           </div>
         </div>
       </div>
-      <div className="overflow-hidden rounded-md border border-line bg-white">
-        <div className="grid grid-cols-[minmax(0,1fr)_92px] border-b border-line bg-surface px-3 py-2 text-xs font-bold text-muted">
-          <span>氏名</span>
+      <div className="overflow-hidden border border-[#111827] bg-white">
+        <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-[#111827] bg-[#eee9dd] px-3 py-2 text-xs font-bold text-ink">
+          <span>役職</span>
+          <span>名前</span>
           <span className="text-right">金額</span>
         </div>
         {rows.map((row) => (
-          <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 text-sm">
-            <p className="truncate font-bold text-ink">{row.name}</p>
-            <p className="text-right font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYenText(row.amount)}</p>
+          <div key={row.id} className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center border-b border-[#111827] text-sm">
+            <p className="h-full truncate border-r border-[#111827] bg-[#f7f4ec] px-3 py-2.5 text-xs font-bold text-ink-sub">{row.role ?? ""}</p>
+            <p className="truncate px-3 font-bold text-ink">{row.name}</p>
+            <p className="px-3 text-right font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYenText(row.amount)}</p>
           </div>
         ))}
-        <div className="grid grid-cols-[minmax(0,1fr)_92px] items-center bg-surface px-3 py-2.5 text-sm">
+        <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center bg-[#eee9dd] px-3 py-2.5 text-sm">
           <p className="font-bold text-ink">合計</p>
+          <p className="font-bold text-ink">{participantCount}名</p>
           <p className="text-right font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYenText(collectionTotal)}</p>
         </div>
       </div>
@@ -1350,7 +1360,7 @@ function PersonalResultCard({
         <SummaryLine label="差額（回収 - 領収）" value={formatAdjustment(difference)} />
       </div>
       {difference !== 0 && (
-        <p className="mt-3 rounded border border-line bg-surface px-2.5 py-2 text-xs font-bold leading-5 text-ink-sub">
+        <p className="mt-3 border border-[#111827] bg-[#f7f4ec] px-2.5 py-2 text-xs font-bold leading-5 text-ink-sub">
           差額は補助金・会社負担・幹事調整分としてご確認ください。
         </p>
       )}
@@ -1377,10 +1387,13 @@ function ResultCard({
   const difference = result.finalTotal - totalAmount;
 
   return (
-    <div className={`rounded-md border bg-white p-4 ${result.isValid ? "border-line" : "border-warn-soft"}`}>
-      <div className="mb-3 flex items-center justify-between gap-3 border-b border-line pb-2">
-        <h2 className="text-base font-bold">精算結果</h2>
-        <span className={`inline-flex min-h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-bold ${
+    <div className={`border-2 bg-white p-3 ${result.isValid ? "border-[#111827]" : "border-warn"}`}>
+      <div className="mb-3 flex items-center justify-between gap-3 border-b-2 border-[#111827] pb-2">
+        <div className="flex items-center gap-2">
+          <span className="size-2.5 shrink-0 border border-[#111827] bg-brand" aria-hidden="true" />
+          <h2 className="text-[15px] font-bold">精算結果</h2>
+        </div>
+        <span className={`inline-flex min-h-6 shrink-0 items-center gap-1 border border-[#111827] px-2 text-xs font-bold ${
           result.isValid ? "bg-ok-soft text-ok" : "bg-warn-soft text-warn"
         }`}>
           {result.isValid && <Check size={14} aria-hidden="true" />}
@@ -1388,40 +1401,40 @@ function ResultCard({
         </span>
       </div>
       {validationMessages.length > 0 && (
-        <div className="mb-3 rounded border border-warn-soft bg-warn-soft p-2.5 text-sm font-bold leading-6 text-warn">
+        <div className="mb-3 border border-warn bg-warn-soft p-2.5 text-sm font-bold leading-6 text-warn">
           {validationMessages.map((message) => <p key={message}>{message}</p>)}
         </div>
       )}
-      <div className="mb-3 rounded-md border border-line bg-surface p-3">
+      <div className="mb-3 border border-[#111827] bg-[#f7f4ec] p-2.5">
         <p className="text-xs font-bold text-muted">回収予定額</p>
         <p className="mt-1 text-[24px] font-bold tracking-normal text-ink [font-variant-numeric:tabular-nums]">{formatYen(result.finalTotal)}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-md border border-line bg-white px-2.5 py-2">
+          <div className="border border-[#111827] bg-white px-2.5 py-2">
             <p className="text-xs font-bold text-muted">人数</p>
             <p className="font-bold text-ink">{result.totalPeople}名</p>
           </div>
-          <div className="rounded-md border border-line bg-white px-2.5 py-2">
+          <div className="border border-[#111827] bg-white px-2.5 py-2">
             <p className="text-xs font-bold text-muted">端数調整</p>
             <p className="font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYen(result.roundingAdjustment)}</p>
           </div>
         </div>
       </div>
-      <div className={`overflow-hidden rounded-md border bg-white ${result.isValid ? "border-line" : "border-warn-soft"}`}>
+      <div className={`overflow-hidden border bg-white ${result.isValid ? "border-[#111827]" : "border-warn"}`}>
         {paymentRows ? (
           <>
-            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-line bg-surface px-3 py-2 text-xs font-bold text-muted">
+            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-[#111827] bg-[#eee9dd] px-3 py-2 text-xs font-bold text-ink">
               <span>役職</span>
               <span>名前</span>
               <span className="text-right">金額</span>
             </div>
             {paymentRows.map((row) => (
-              <div key={row.id} className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 text-sm">
-                <p className="truncate text-xs font-bold text-muted">{row.role ?? ""}</p>
-                <p className="truncate font-bold text-ink">{row.name}</p>
-                <p className="text-right font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYenText(row.amount)}</p>
+              <div key={row.id} className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center border-b border-[#111827] text-sm">
+                <p className="h-full truncate border-r border-[#111827] bg-[#f7f4ec] px-3 py-2.5 text-xs font-bold text-ink-sub">{row.role ?? ""}</p>
+                <p className="truncate px-3 font-bold text-ink">{row.name}</p>
+                <p className="px-3 text-right font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYenText(row.amount)}</p>
               </div>
             ))}
-            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center bg-surface px-3 py-2.5 text-sm font-bold">
+            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center bg-[#eee9dd] px-3 py-2.5 text-sm font-bold">
               <p className="text-muted">合計</p>
               <p className="text-ink">{result.totalPeople}名</p>
               <p className="text-right text-ink [font-variant-numeric:tabular-nums]">{formatYenText(result.finalTotal)}</p>
@@ -1429,24 +1442,29 @@ function ResultCard({
           </>
         ) : (
           <>
-            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-line bg-surface px-3 py-2 text-xs font-bold text-muted">
+            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-[#111827] bg-[#eee9dd] px-3 py-2 text-xs font-bold text-ink">
               <span>役職</span>
               <span className="text-right">1人</span>
               <span className="text-right">小計</span>
             </div>
             {result.rows.filter((row) => row.people > 0).map((row) => (
-              <div key={row.id} className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 last:border-b-0">
-                <div className="min-w-0">
+              <div key={row.id} className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center border-b border-[#111827]">
+                <div className="min-w-0 border-r border-[#111827] bg-[#f7f4ec] px-3 py-2.5">
                   <p className="truncate font-bold">{displayGroupLabel(row)}</p>
                   <p className="text-xs text-muted">{row.people}名</p>
                 </div>
-                <p className="text-right text-sm font-bold [font-variant-numeric:tabular-nums]">{formatYen(row.finalPerPerson)}</p>
-                <div className="text-right">
+                <p className="px-3 text-right text-sm font-bold [font-variant-numeric:tabular-nums]">{formatYen(row.finalPerPerson)}</p>
+                <div className="px-3 text-right">
                   <p className="text-sm font-bold [font-variant-numeric:tabular-nums]">{formatYen(row.subtotal)}</p>
                   {row.adjustment !== 0 && <p className="text-xs text-brand">調整 {formatYen(row.adjustment)}</p>}
                 </div>
               </div>
             ))}
+            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center bg-[#eee9dd] px-3 py-2.5 text-sm font-bold">
+              <p className="text-muted">合計</p>
+              <p className="text-right text-ink">{result.totalPeople}名</p>
+              <p className="text-right text-ink [font-variant-numeric:tabular-nums]">{formatYen(result.finalTotal)}</p>
+            </div>
           </>
         )}
       </div>
@@ -1461,43 +1479,11 @@ function ResultCard({
   );
 }
 
-function GeneratedBlock({
-  icon,
-  title,
-  text,
-  buttonLabel,
-  children
-}: {
-  icon: ReactNode;
-  title: string;
-  text: string;
-  buttonLabel: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="mb-3 rounded border border-line bg-surface p-3 last:mb-0">
-      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1.5 text-sm font-bold text-ink">
-          <span className="text-brand">{icon}</span>
-          <h3>{title}</h3>
-        </div>
-        <div className="grid gap-1.5 sm:flex sm:items-center">
-          <CopyButton text={text} label={buttonLabel} />
-          {children}
-        </div>
-      </div>
-      <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded border border-line bg-white p-3 text-sm leading-6 text-ink">
-        {text}
-      </pre>
-    </div>
-  );
-}
-
 function SummaryLine({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className={strong ? "font-bold text-white" : "font-bold text-muted"}>{label}</span>
-      <span className={strong ? "text-lg font-bold text-white" : "font-bold text-ink"}>{value}</span>
+      <span className={`${strong ? "text-lg font-bold text-white" : "font-bold text-ink"} text-right [font-variant-numeric:tabular-nums]`}>{value}</span>
     </div>
   );
 }
@@ -1540,7 +1526,7 @@ function FaqCard() {
   ];
 
   return (
-    <article className="rounded-md border border-line bg-white p-4">
+    <article className="border border-[#111827] bg-white p-3">
       <h2 className="mb-3 text-base font-bold">よくある質問</h2>
       <dl className="space-y-3">
         {items.map((item) => (
@@ -1556,7 +1542,7 @@ function FaqCard() {
 
 function InfoCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <article className="rounded-md border border-line bg-white p-4">
+    <article className="border border-[#111827] bg-white p-3">
       <h2 className="mb-1.5 text-base font-bold">{title}</h2>
       <p className="text-sm leading-6 text-ink-sub">{children}</p>
     </article>
