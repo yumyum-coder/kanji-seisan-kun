@@ -55,24 +55,42 @@ const groupWeights: Record<GroupMode, Record<PresetKey, Record<string, number>>>
       director: 1.35,
       manager: 1.22,
       management: 1.14,
-      senior: 1.05,
+      year10: 1.08,
+      year7: 1.05,
+      year4: 1,
+      year3: 0.96,
+      year2: 0.92,
       junior: 0.92,
+      year1: 0.8,
+      senior: 1.05,
       newcomer: 0.8
     },
     standard: {
       director: 1.6,
       manager: 1.4,
       management: 1.25,
-      senior: 1.1,
+      year10: 1.15,
+      year7: 1.1,
+      year4: 1,
+      year3: 0.92,
+      year2: 0.85,
       junior: 0.85,
+      year1: 0.65,
+      senior: 1.1,
       newcomer: 0.65
     },
     strong: {
       director: 1.9,
       manager: 1.6,
       management: 1.35,
-      senior: 1.1,
+      year10: 1.2,
+      year7: 1.1,
+      year4: 0.95,
+      year3: 0.85,
+      year2: 0.75,
       junior: 0.75,
+      year1: 0.5,
+      senior: 1.1,
       newcomer: 0.5
     }
   },
@@ -125,10 +143,14 @@ const groupTemplates: Record<GroupMode, Array<Omit<RoleGroup, "weight">>> = {
   role: [
     { id: "director", label: "部長", people: 1 },
     { id: "manager", label: "課長", people: 1 },
+    { id: "junior", label: "一般", people: 0 },
     { id: "management", label: "管理職", people: 0 },
-    { id: "senior", label: "先輩", people: 0 },
-    { id: "junior", label: "若手", people: 0 },
-    { id: "newcomer", label: "新人", people: 0 }
+    { id: "year10", label: "10年目以上", people: 0 },
+    { id: "year7", label: "7〜9年目", people: 0 },
+    { id: "year4", label: "4〜6年目", people: 0 },
+    { id: "year3", label: "3年目", people: 0 },
+    { id: "year2", label: "2年目", people: 0 },
+    { id: "year1", label: "1年目", people: 0 }
   ],
   year: [
     { id: "year10", label: "10年目以上", people: 2 },
@@ -149,9 +171,9 @@ const defaultFeeRoles: FeeRole[] = [
   { id: "director", label: "部長", fee: 7000 },
   { id: "manager", label: "課長", fee: 5000 },
   { id: "management", label: "管理職", fee: 5000 },
-  { id: "senior", label: "先輩", fee: 4000 },
-  { id: "junior", label: "若手", fee: 3000 },
-  { id: "newcomer", label: "新人", fee: 1000 }
+  { id: "senior", label: "7〜9年目", fee: 4000 },
+  { id: "junior", label: "3年目", fee: 3000 },
+  { id: "newcomer", label: "1年目", fee: 1000 }
 ];
 
 const initialPersonalForm: PersonalFormState = {
@@ -338,6 +360,14 @@ function displayGroupLabel(group: Pick<RoleGroup, "id" | "label">) {
     return "一般";
   }
 
+  if (group.id === "senior") {
+    return "7〜9年目";
+  }
+
+  if (group.id === "newcomer") {
+    return "1年目";
+  }
+
   return group.label;
 }
 
@@ -403,7 +433,9 @@ export default function Home() {
           totalAmount: parsed.totalAmount ?? initialForm.totalAmount,
           roundingUnit: parsed.roundingUnit ?? initialForm.roundingUnit,
           note: parsed.note ?? initialForm.note,
-          groups: parsed.mode && parsed.groups ? normalizeGroupLabels(parsed.groups) : buildGroups(storedMode, preset),
+          groups: parsed.mode && parsed.groups
+            ? buildGroups(storedMode, preset, normalizeGroupLabels(parsed.groups))
+            : buildGroups(storedMode, preset),
           participantNames: parsed.participantNames ?? {}
         });
       } catch {
@@ -740,7 +772,7 @@ export default function Home() {
     ? form.groups.filter((group) => ["director", "manager", "junior"].includes(group.id) || group.people > 0)
     : form.groups;
   const addableRoleRows = form.mode === "role"
-    ? form.groups.filter((group) => ["management", "senior", "newcomer"].includes(group.id) && group.people <= 0)
+    ? form.groups.filter((group) => ["management", "year10", "year7", "year4", "year3", "year2", "year1"].includes(group.id) && group.people <= 0)
     : [];
   const mobileTotal = workflowMode === "auto" ? result.finalTotal : personalCollectionTotal;
   const mobileDifference = workflowMode === "auto" ? result.finalTotal - form.totalAmount : personalDifference;
@@ -1495,7 +1527,7 @@ function SeoSection() {
         幹事精算くんは、会社の飲み会や歓送迎会の精算を整理するブラウザ上の簡易ツールです。金額とグループ人数を入力すると、傾斜精算表と連絡文を作成できます。
       </InfoCard>
       <InfoCard title="傾斜精算とは？">
-        傾斜精算とは、役職や年次に応じて支払額に差をつける精算方法です。会社の飲み会では、役職が上の方が少し多く負担し、若手の負担を抑える形で使われます。
+        傾斜精算とは、役職や年次に応じて支払額に差をつける精算方法です。会社の飲み会では、役職が上の方が少し多く負担し、年次の浅い方の負担を抑える形で使われます。
       </InfoCard>
       <InfoCard title="こんな場面で使えます">
         歓送迎会、忘年会、部署飲み会、プロジェクト打ち上げなど、幹事が先に支払い、あとから参加者へ精算案を共有する場面に向いています。
