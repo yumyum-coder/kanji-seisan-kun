@@ -296,6 +296,47 @@ function formatAdjustment(amount: number) {
   return `${sign}${formatYen(Math.abs(amount))}`;
 }
 
+function formatYenText(amount: number) {
+  return formatYen(amount).replace("￥", "¥");
+}
+
+function formatAdjustmentText(amount: number) {
+  if (amount === 0) {
+    return formatYenText(0);
+  }
+
+  const sign = amount > 0 ? "+" : "-";
+  return `${sign}${formatYenText(Math.abs(amount))}`;
+}
+
+function padTableCell(value: string, width: number) {
+  return value + " ".repeat(Math.max(0, width - value.length));
+}
+
+function buildPlainPaymentTable(title: string, rows: Array<{ name: string; amount: number }>, total: number) {
+  const nameWidth = Math.max(10, "氏名".length, "合計".length, ...rows.map((row) => row.name.length));
+  const amountTexts = rows.map((row) => formatYenText(row.amount));
+  const totalText = formatYenText(total);
+  const amountWidth = Math.max(8, "金額".length, totalText.length, ...amountTexts.map((amount) => amount.length));
+  const top = `┌${"─".repeat(nameWidth + 2)}┬${"─".repeat(amountWidth + 2)}┐`;
+  const middle = `├${"─".repeat(nameWidth + 2)}┼${"─".repeat(amountWidth + 2)}┤`;
+  const bottom = `└${"─".repeat(nameWidth + 2)}┴${"─".repeat(amountWidth + 2)}┘`;
+  const line = (name: string, amount: string) =>
+    `│ ${padTableCell(name, nameWidth)} │ ${padTableCell(amount, amountWidth)} │`;
+
+  return [
+    `【${title} 精算表】`,
+    "",
+    top,
+    line("氏名", "金額"),
+    middle,
+    ...rows.map((row) => line(row.name, formatYenText(row.amount))),
+    middle,
+    line("合計", totalText),
+    bottom
+  ].join("\n");
+}
+
 function splitNames(value: string | undefined) {
   return (value ?? "")
     .split(/\r?\n/)
@@ -389,53 +430,49 @@ export default function Home() {
   const groupCostRows = result.rows
     .filter((row) => row.people > 0)
     .map((row) => {
-      const adjustment = row.adjustment === 0 ? "" : `（調整 ${formatAdjustment(row.adjustment)}）`;
-      return `${row.label}｜${formatYen(row.finalPerPerson)}｜${row.people}名｜${formatYen(row.subtotal)}${adjustment}`;
+      const adjustment = row.adjustment === 0 ? "" : `（調整 ${formatAdjustmentText(row.adjustment)}）`;
+      return `${row.label}：${formatYenText(row.finalPerPerson)} × ${row.people}名 = ${formatYenText(row.subtotal)}${adjustment}`;
     });
   const groupSettlementText = [
     `【${form.eventName || "飲み会"} 精算】`,
-    `合計金額：${formatYen(form.totalAmount)}`,
+    `合計金額：${formatYenText(form.totalAmount)}`,
     "",
-    "区分｜1人あたり｜人数｜小計",
     ...groupCostRows,
     "",
-    `回収予定額：${formatYen(result.finalTotal)}`,
-    `端数調整：${formatAdjustment(result.roundingAdjustment)}`
+    `回収予定額：${formatYenText(result.finalTotal)}`,
+    `端数調整：${formatAdjustmentText(result.roundingAdjustment)}`
   ].join("\n");
 
   const participantGroupLines = result.rows
     .filter((row) => row.people > 0)
-    .map((row) => `${row.label}：${formatYen(row.finalPerPerson)} × ${row.people}名`);
+    .map((row) => `${row.label}：${formatYenText(row.finalPerPerson)} × ${row.people}名 = ${formatYenText(row.subtotal)}`);
   const hasParticipantNames = result.rows.some((row) => splitNames(form.participantNames[row.id]).length > 0);
-  const individualPaymentRows = result.rows.flatMap((row) => {
+  const individualPaymentRows = result.rows.flatMap<{ id: string; name: string; amount: number }>((row) => {
     const names = (form.participantNames[row.id] ?? "").split(/\r?\n/);
 
     return Array.from({ length: row.people }).map((_, index) => {
       const name = names[index]?.trim() || `${row.label}${index + 1}人目`;
-      return `${name}｜${row.label}｜${formatYen(row.finalPerPerson)}`;
+      return {
+        id: `${row.id}-${index}`,
+        name,
+        amount: row.finalPerPerson
+      };
     });
   });
-  const individualPaymentLines = individualPaymentRows.map((row) => {
-    const [name, , amount] = row.split("｜");
-    return `${name}：${amount}`;
-  });
-  const personSettlementText = [
-    `【${form.eventName || "飲み会"} 精算】`,
-    `合計金額：${formatYen(form.totalAmount)}`,
-    "",
-    "氏名｜区分｜金額",
-    ...individualPaymentRows,
-    "",
-    `回収予定額：${formatYen(result.finalTotal)}`
-  ].join("\n");
+  const individualPaymentLines = individualPaymentRows.map((row) => `${row.name}：${formatYenText(row.amount)}`);
+  const personSettlementText = buildPlainPaymentTable(
+    form.eventName || "飲み会",
+    individualPaymentRows,
+    result.finalTotal
+  );
   const settlementText = hasParticipantNames ? personSettlementText : groupSettlementText;
   const participantPaymentText = hasParticipantNames ? personSettlementText : [
     `【${form.eventName || "飲み会"} 精算】`,
-    `合計金額：${formatYen(form.totalAmount)}`,
+    `合計金額：${formatYenText(form.totalAmount)}`,
     "",
     ...participantGroupLines,
     "",
-    `回収予定額：${formatYen(result.finalTotal)}`
+    `回収予定額：${formatYenText(result.finalTotal)}`
   ].join("\n");
 
   const approvalMessage = [
@@ -444,7 +481,14 @@ export default function Home() {
     `${form.eventName || "飲み会"}の精算案を作成いたしました。`,
     "役職・年次に応じて傾斜をつけ、端数は上位の区分で調整しております。",
     "",
-    groupSettlementText,
+    hasParticipantNames ? personSettlementText : groupSettlementText,
+    ...(hasParticipantNames
+      ? [
+          "",
+          "【区分別精算】",
+          groupSettlementText
+        ]
+      : []),
     "",
     "上記の金額感で違和感がないか、念のためご確認いただけますでしょうか。",
     "特に傾斜の強さや下位グループの負担額について、調整した方がよい点があればご指示ください。",
@@ -455,7 +499,7 @@ export default function Home() {
     "お疲れさまです。",
     "",
     `${form.eventName || "飲み会"}の精算金額が確定しましたので、ご案内いたします。`,
-    "恐れ入りますが、振込先をご確認のうえ、下記の該当金額をお振込みいただけますと幸いです。",
+    "恐れ入りますが、下記の該当金額をご確認のうえ、お振込みいただけますと幸いです。",
     "",
     participantPaymentText,
     "",
@@ -472,6 +516,7 @@ export default function Home() {
     ...(hasParticipantNames
       ? individualPaymentLines
       : participantGroupLines),
+    ...(hasParticipantNames ? [`合計：${formatYenText(result.finalTotal)}`] : []),
     "",
     "恐れ入りますが、該当金額のお振込みをお願いいたします。",
     "振込先は別途ご案内いたします。",
@@ -492,20 +537,26 @@ export default function Home() {
   const personalParticipantCount = personalRows.length;
   const personalCollectionTotal = personalRows.reduce((sum, row) => sum + row.amount, 0);
   const personalDifference = personalCollectionTotal - form.totalAmount;
-  const roleFeeTableText = [
-    "区分｜会費",
-    ...personalForm.roles.map((role) => `${role.label || "未設定"}｜${formatYen(role.fee)}`)
-  ].join("\n");
+  const roleFeeTableText = personalForm.roles
+    .map((role) => `${role.label || "未設定"}：${formatYenText(role.fee)}`)
+    .join("\n");
+  const personalPaymentRows = personalRows.map((row) => ({
+    id: row.id,
+    name: row.displayName,
+    amount: row.amount
+  }));
+  const personalPaymentTableText = buildPlainPaymentTable(
+    form.eventName || "飲み会",
+    personalPaymentRows,
+    personalCollectionTotal
+  );
   const personalSettlementText = [
-    `【${form.eventName || "飲み会"} 精算】`,
-    `領収金額：${formatYen(form.totalAmount)}`,
-    "",
-    "氏名｜区分｜金額",
-    ...personalRows.map((row) => `${row.displayName}｜${row.roleLabel}｜${formatYen(row.amount)}`),
+    personalPaymentTableText,
     "",
     `参加人数：${personalParticipantCount}名`,
-    `回収予定額：${formatYen(personalCollectionTotal)}`,
-    `差額（回収 - 領収）：${formatAdjustment(personalDifference)}`,
+    `領収金額：${formatYenText(form.totalAmount)}`,
+    `回収予定額：${formatYenText(personalCollectionTotal)}`,
+    `差額（回収 - 領収）：${formatAdjustmentText(personalDifference)}`,
     ...(personalDifference !== 0
       ? ["差額は補助金・会社負担・幹事調整分としてご確認ください。"]
       : [])
@@ -516,8 +567,7 @@ export default function Home() {
     `${form.eventName || "飲み会"}の精算金額が確定しましたので、ご連絡いたします。`,
     "お手数ですが、下記の該当金額をご確認ください。",
     "",
-    "【精算表】",
-    ...personalRows.map((row) => `${row.displayName}：${formatYen(row.amount)}`),
+    personalPaymentTableText,
     "",
     "振込先は別途ご案内いたします。",
     form.note,
@@ -527,7 +577,8 @@ export default function Home() {
     `【${form.eventName || "飲み会"} 精算】`,
     "お疲れさまです。精算金額のご案内です。",
     "",
-    ...personalRows.map((row) => `${row.displayName}：${formatYen(row.amount)}`),
+    ...personalRows.map((row) => `${row.displayName}：${formatYenText(row.amount)}`),
+    `合計：${formatYenText(personalCollectionTotal)}`,
     "",
     "振込先は別途ご案内いたします。",
     form.note
@@ -920,6 +971,7 @@ export default function Home() {
                 result={result}
                 totalAmount={form.totalAmount}
                 tableText={settlementText}
+                paymentRows={hasParticipantNames ? individualPaymentRows : undefined}
                 validationMessages={validationMessages}
               />
             ) : (
@@ -928,7 +980,7 @@ export default function Home() {
                 participantCount={personalParticipantCount}
                 collectionTotal={personalCollectionTotal}
                 difference={personalDifference}
-                rows={personalRows}
+                rows={personalPaymentRows}
                 tableText={personalSettlementText}
               />
             )}
@@ -980,6 +1032,7 @@ export default function Home() {
               result={result}
               totalAmount={form.totalAmount}
               tableText={settlementText}
+              paymentRows={hasParticipantNames ? individualPaymentRows : undefined}
               validationMessages={validationMessages}
             />
           ) : (
@@ -988,7 +1041,7 @@ export default function Home() {
               participantCount={personalParticipantCount}
               collectionTotal={personalCollectionTotal}
               difference={personalDifference}
-              rows={personalRows}
+              rows={personalPaymentRows}
               tableText={personalSettlementText}
             />
           )}
@@ -1133,7 +1186,7 @@ function PersonalResultCard({
   participantCount: number;
   collectionTotal: number;
   difference: number;
-  rows: Array<{ id: string; displayName: string; roleLabel: string; amount: number }>;
+  rows: Array<{ id: string; name: string; amount: number }>;
   tableText: string;
 }) {
   return (
@@ -1159,18 +1212,20 @@ function PersonalResultCard({
         </div>
       </div>
       <div className="overflow-hidden rounded border border-line bg-white">
-        <div className="grid grid-cols-[minmax(0,1fr)_74px_84px] border-b border-line bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
+        <div className="grid grid-cols-[minmax(0,1fr)_92px] border-b border-line bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
           <span>氏名</span>
-          <span>区分</span>
           <span className="text-right">金額</span>
         </div>
         {rows.map((row) => (
-          <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_74px_84px] items-center border-b border-line px-3 py-2.5 text-sm last:border-b-0">
-            <p className="truncate font-black text-ink">{row.displayName}</p>
-            <p className="truncate text-xs font-bold text-slate-500">{row.roleLabel}</p>
-            <p className="text-right font-black text-ink">{formatYen(row.amount)}</p>
+          <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 text-sm last:border-b-0">
+            <p className="truncate font-black text-ink">{row.name}</p>
+            <p className="text-right font-black text-ink">{formatYenText(row.amount)}</p>
           </div>
         ))}
+        <div className="grid grid-cols-[minmax(0,1fr)_92px] items-center bg-slate-50 px-3 py-2.5 text-sm">
+          <p className="font-black text-ink">合計</p>
+          <p className="text-right font-black text-ink">{formatYenText(collectionTotal)}</p>
+        </div>
       </div>
       <div className="mt-3 grid gap-1.5 text-sm">
         <SummaryLine label="領収金額" value={formatYen(receiptTotal)} />
@@ -1193,11 +1248,13 @@ function ResultCard({
   result,
   totalAmount,
   tableText,
+  paymentRows,
   validationMessages
 }: {
   result: ReturnType<typeof calculateSettlement>;
   totalAmount: number;
   tableText: string;
+  paymentRows?: Array<{ id: string; name: string; amount: number }>;
   validationMessages: string[];
 }) {
   return (
@@ -1228,24 +1285,45 @@ function ResultCard({
         </div>
       </div>
       <div className="overflow-hidden rounded border border-line bg-white">
-        <div className="grid grid-cols-[minmax(0,1fr)_72px_92px] border-b border-line bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
-          <span>区分</span>
-          <span className="text-right">1人</span>
-          <span className="text-right">小計</span>
-        </div>
-        {result.rows.filter((row) => row.people > 0).map((row) => (
-          <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_72px_92px] items-center border-b border-line px-3 py-2.5 last:border-b-0">
-            <div className="min-w-0">
-              <p className="truncate font-black">{row.label}</p>
-              <p className="text-xs text-slate-500">{row.people}名</p>
+        {paymentRows ? (
+          <>
+            <div className="grid grid-cols-[minmax(0,1fr)_92px] border-b border-line bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
+              <span>氏名</span>
+              <span className="text-right">金額</span>
             </div>
-            <p className="text-right text-sm font-black">{formatYen(row.finalPerPerson)}</p>
-            <div className="text-right">
-              <p className="text-sm font-black">{formatYen(row.subtotal)}</p>
-              {row.adjustment !== 0 && <p className="text-xs text-accent">調整 {formatYen(row.adjustment)}</p>}
+            {paymentRows.map((row) => (
+              <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 text-sm last:border-b-0">
+                <p className="truncate font-black text-ink">{row.name}</p>
+                <p className="text-right font-black text-ink">{formatYenText(row.amount)}</p>
+              </div>
+            ))}
+            <div className="grid grid-cols-[minmax(0,1fr)_92px] items-center bg-slate-50 px-3 py-2.5 text-sm">
+              <p className="font-black text-ink">合計</p>
+              <p className="text-right font-black text-ink">{formatYenText(result.finalTotal)}</p>
             </div>
-          </div>
-        ))}
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-[minmax(0,1fr)_72px_92px] border-b border-line bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
+              <span>区分</span>
+              <span className="text-right">1人</span>
+              <span className="text-right">小計</span>
+            </div>
+            {result.rows.filter((row) => row.people > 0).map((row) => (
+              <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_72px_92px] items-center border-b border-line px-3 py-2.5 last:border-b-0">
+                <div className="min-w-0">
+                  <p className="truncate font-black">{row.label}</p>
+                  <p className="text-xs text-slate-500">{row.people}名</p>
+                </div>
+                <p className="text-right text-sm font-black">{formatYen(row.finalPerPerson)}</p>
+                <div className="text-right">
+                  <p className="text-sm font-black">{formatYen(row.subtotal)}</p>
+                  {row.adjustment !== 0 && <p className="text-xs text-accent">調整 {formatYen(row.adjustment)}</p>}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </div>
       <div className="mt-3 grid gap-1.5 text-sm">
         <SummaryLine label="領収金額" value={formatYen(totalAmount)} />
