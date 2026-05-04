@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Check, Clipboard, Mail, MessageSquareText, Minus, Pencil, Plus, Send, Share2, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Check, ChevronUp, Clipboard, Mail, MessageSquareText, Minus, Pencil, Plus, Send, Share2, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import {
   calculateSettlement,
   formatYen,
@@ -31,8 +31,8 @@ type PersonalFormState = {
 };
 
 const workflowLabels: Record<WorkflowMode, string> = {
-  auto: "自動で傾斜計算",
-  personal: "個人別に会費を作成"
+  auto: "傾斜で自動計算する",
+  personal: "1人ずつ会費を決める"
 };
 
 const presetLabels: Record<PresetKey, string> = {
@@ -233,7 +233,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1600);
       })}
-      className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded bg-brand px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#264f86] focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 sm:w-auto"
+      className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:min-h-9 sm:w-auto"
       aria-label={`${label}をコピー`}
     >
       {copied ? <Check size={15} aria-hidden="true" /> : <Clipboard size={15} aria-hidden="true" />}
@@ -248,7 +248,7 @@ function MailtoButton({ subject, body }: { subject: string; body: string }) {
   return (
     <a
       href={href}
-      className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 sm:w-auto"
+      className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:min-h-9 sm:w-auto"
     >
       <Mail size={15} aria-hidden="true" />
       メールを作成
@@ -275,7 +275,7 @@ function ShareButton({ text }: { text: string }) {
 
         copyText(text, done);
       }}
-      className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 sm:w-auto"
+      className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:min-h-9 sm:w-auto"
     >
       {shared ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
       {shared ? "共有準備済み" : "LINEで共有"}
@@ -309,32 +309,56 @@ function formatAdjustmentText(amount: number) {
   return `${sign}${formatYenText(Math.abs(amount))}`;
 }
 
-function padTableCell(value: string, width: number) {
-  return value + " ".repeat(Math.max(0, width - value.length));
-}
-
 function buildPlainPaymentTable(title: string, rows: Array<{ name: string; amount: number }>, total: number) {
-  const nameWidth = Math.max(10, "氏名".length, "合計".length, ...rows.map((row) => row.name.length));
-  const amountTexts = rows.map((row) => formatYenText(row.amount));
-  const totalText = formatYenText(total);
-  const amountWidth = Math.max(8, "金額".length, totalText.length, ...amountTexts.map((amount) => amount.length));
-  const top = `┌${"─".repeat(nameWidth + 2)}┬${"─".repeat(amountWidth + 2)}┐`;
-  const middle = `├${"─".repeat(nameWidth + 2)}┼${"─".repeat(amountWidth + 2)}┤`;
-  const bottom = `└${"─".repeat(nameWidth + 2)}┴${"─".repeat(amountWidth + 2)}┘`;
-  const line = (name: string, amount: string) =>
-    `│ ${padTableCell(name, nameWidth)} │ ${padTableCell(amount, amountWidth)} │`;
-
   return [
     `【${title} 精算表】`,
     "",
-    top,
-    line("氏名", "金額"),
-    middle,
-    ...rows.map((row) => line(row.name, formatYenText(row.amount))),
-    middle,
-    line("合計", totalText),
-    bottom
+    ...rows.flatMap((row, index) => [
+      `${row.name}：${formatYenText(row.amount)}`,
+      ...(index < rows.length - 1 ? ["--------------------"] : [])
+    ]),
+    rows.length > 0 ? "--------------------" : "",
+    `合計：${formatYenText(total)}`
   ].join("\n");
+}
+
+function buildEmailPaymentList(title: string, rows: Array<{ name: string; amount: number }>, total: number) {
+  return [
+    `【${title} 精算表】`,
+    "",
+    ...rows.map((row) => `${row.name}　${formatYenText(row.amount)}`),
+    `合計　${formatYenText(total)}`
+  ].join("\n");
+}
+
+const circledNumbers = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
+
+function displayGroupLabel(group: Pick<RoleGroup, "id" | "label">) {
+  if (group.id === "junior") {
+    return "一般";
+  }
+
+  return group.label;
+}
+
+function numberedName(label: string, index: number) {
+  return `${label} ${circledNumbers[index] ?? `(${index + 1})`}`;
+}
+
+function getPresetDifference(totalAmount: number, roundingUnit: number, groups: RoleGroup[], key: PresetKey) {
+  const previewGroups = groups.map((group) => ({
+    ...group,
+    weight: groupWeights.role[key][group.id] ?? group.weight
+  }));
+  const preview = calculateSettlement({ totalAmount, roundingUnit, groups: previewGroups });
+  const director = preview.rows.find((row) => row.id === "director");
+  const general = preview.rows.find((row) => row.id === "junior");
+
+  if (!director || !general || director.people <= 0 || general.people <= 0) {
+    return formatYen(0);
+  }
+
+  return formatYen(Math.abs(director.finalPerPerson - general.finalPerPerson));
 }
 
 function splitNames(value: string | undefined) {
@@ -358,6 +382,8 @@ export default function Home() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [personalForm, setPersonalForm] = useState<PersonalFormState>(initialPersonalForm);
   const [preset, setPreset] = useState<PresetKey>("standard");
+  const [activeMessageTab, setActiveMessageTab] = useState<"approval" | "participant" | "chat" | "thanks">("approval");
+  const resultSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const storedWorkflow = window.localStorage.getItem("kanji-seisan-workflow");
@@ -431,7 +457,7 @@ export default function Home() {
     .filter((row) => row.people > 0)
     .map((row) => {
       const adjustment = row.adjustment === 0 ? "" : `（調整 ${formatAdjustmentText(row.adjustment)}）`;
-      return `${row.label}：${formatYenText(row.finalPerPerson)} × ${row.people}名 = ${formatYenText(row.subtotal)}${adjustment}`;
+      return `${displayGroupLabel(row)}：${formatYenText(row.finalPerPerson)} × ${row.people}名 = ${formatYenText(row.subtotal)}${adjustment}`;
     });
   const groupSettlementText = [
     `【${form.eventName || "飲み会"} 精算】`,
@@ -445,22 +471,24 @@ export default function Home() {
 
   const participantGroupLines = result.rows
     .filter((row) => row.people > 0)
-    .map((row) => `${row.label}：${formatYenText(row.finalPerPerson)} × ${row.people}名 = ${formatYenText(row.subtotal)}`);
+    .map((row) => `${displayGroupLabel(row)}：${formatYenText(row.finalPerPerson)} × ${row.people}名 = ${formatYenText(row.subtotal)}`);
   const hasParticipantNames = result.rows.some((row) => splitNames(form.participantNames[row.id]).length > 0);
-  const individualPaymentRows = result.rows.flatMap<{ id: string; name: string; amount: number }>((row) => {
+  const individualPaymentRows = result.rows.flatMap<{ id: string; role: string; name: string; amount: number }>((row) => {
     const names = (form.participantNames[row.id] ?? "").split(/\r?\n/);
+    const label = displayGroupLabel(row);
 
     return Array.from({ length: row.people }).map((_, index) => {
-      const name = names[index]?.trim() || `${row.label}${index + 1}人目`;
+      const name = names[index]?.trim() || numberedName(label, index);
       return {
         id: `${row.id}-${index}`,
+        role: label,
         name,
         amount: row.finalPerPerson
       };
     });
   });
   const individualPaymentLines = individualPaymentRows.map((row) => `${row.name}：${formatYenText(row.amount)}`);
-  const personSettlementText = buildPlainPaymentTable(
+  const personSettlementText = buildEmailPaymentList(
     form.eventName || "飲み会",
     individualPaymentRows,
     result.finalTotal
@@ -545,7 +573,7 @@ export default function Home() {
     name: row.displayName,
     amount: row.amount
   }));
-  const personalPaymentTableText = buildPlainPaymentTable(
+  const personalPaymentTableText = buildEmailPaymentList(
     form.eventName || "飲み会",
     personalPaymentRows,
     personalCollectionTotal
@@ -707,89 +735,121 @@ export default function Home() {
     setPersonalForm(initialPersonalForm);
   }
 
+  const autoRoleRows = form.mode === "role"
+    ? form.groups.filter((group) => ["director", "manager", "junior"].includes(group.id) || group.people > 0)
+    : form.groups;
+  const addableRoleRows = form.mode === "role"
+    ? form.groups.filter((group) => ["management", "senior", "newcomer"].includes(group.id) && group.people <= 0)
+    : [];
+  const mobileTotal = workflowMode === "auto" ? result.finalTotal : personalCollectionTotal;
+  const mobileDifference = workflowMode === "auto" ? result.finalTotal - form.totalAmount : personalDifference;
+  const mobileIsValid = mobileDifference === 0;
+  const messageTabs = [
+    {
+      id: "approval" as const,
+      label: "上司確認",
+      text: workflowMode === "auto" ? approvalMessage : personalApprovalMessage,
+      copyLabel: "テキストをコピー"
+    },
+    {
+      id: "participant" as const,
+      label: "参加者へ",
+      text: workflowMode === "auto" ? requestMessage : personalRequestMessage,
+      copyLabel: "メール用にコピー"
+    },
+    {
+      id: "chat" as const,
+      label: "LINE/Teams",
+      text: workflowMode === "auto" ? lineMessage : personalLineMessage,
+      copyLabel: "LINE/Teams用にコピー"
+    },
+    {
+      id: "thanks" as const,
+      label: "御礼",
+      text: thanksMessage,
+      copyLabel: "テキストをコピー"
+    }
+  ];
+  const activeMessage = messageTabs.find((tab) => tab.id === activeMessageTab) ?? messageTabs[0];
+  const scrollToResult = () => {
+    if (!resultSectionRef.current) {
+      return;
+    }
+
+    const top = resultSectionRef.current.getBoundingClientRect().top + window.scrollY - 12;
+    window.scrollTo({ top, behavior: "smooth" });
+  };
+
   return (
-    <main className="min-h-screen bg-paper">
+    <main className="min-h-screen bg-paper pb-24 lg:pb-0">
       <section className="border-b border-line bg-white">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-start gap-2.5">
-            <div className="flex items-center gap-2.5">
-              <div className="grid size-7 shrink-0 place-items-center rounded border border-line bg-slate-50 text-brand">
-                <ShieldCheck size={16} aria-hidden="true" />
-              </div>
-              <div className="max-w-xl">
-                <p className="text-xs font-bold text-accent">幹事精算くん</p>
-                <h1 className="mt-0.5 text-lg font-black leading-snug tracking-normal text-ink [text-wrap:balance] sm:text-2xl">
-                  飲み会の傾斜精算と精算メール作成を、1分で。
-                </h1>
-              </div>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-1.5 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
+            <div className="grid size-7 shrink-0 place-items-center rounded-md border border-line bg-surface text-brand">
+              <ShieldCheck size={16} aria-hidden="true" />
             </div>
+            <p className="text-base font-bold text-ink">幹事精算くん</p>
           </div>
-          <div className="max-w-xl">
-            <p className="text-sm leading-6 text-slate-600">
-              領収金額と参加者区分を入れるだけで、精算表・確認文・参加者向け連絡文を作成できます。
-            </p>
-            <p className="mt-2 rounded border border-line bg-slate-50 px-2.5 py-1.5 text-xs font-bold leading-5 text-slate-600">
-              入力内容はブラウザ内で処理され、サーバーには送信されません。名前を入力した場合も、内容はブラウザ内でのみ処理されます。
-            </p>
-          </div>
+          <p className="text-[11px] font-bold leading-5 text-muted">
+            入力内容はブラウザ内で処理され、サーバーには送信されません。
+          </p>
         </div>
       </section>
 
       <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_370px] lg:px-8">
         <section className="space-y-4">
-          <div className="rounded-lg border border-line bg-white p-3 shadow-soft">
-            <p className="mb-2 text-xs font-black text-slate-500">精算方法</p>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {(Object.keys(workflowLabels) as WorkflowMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setWorkflowMode(mode)}
-                  className={`min-h-10 rounded border px-3 text-sm font-black transition ${
-                    workflowMode === mode
-                      ? "border-brand bg-brand text-white"
-                      : "border-line bg-slate-50 text-ink hover:border-brand hover:bg-white"
-                  }`}
-                >
-                  {workflowLabels[mode]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-line bg-white p-4 shadow-soft">
+          <div className="rounded-md border border-line bg-white p-4">
             <div className="mb-3 flex items-center gap-2 border-b border-line pb-2">
               <Pencil size={16} className="text-brand" aria-hidden="true" />
-              <h2 className="text-base font-black">1. 基本情報</h2>
+              <h2 className="text-base font-bold">領収金額と会の名前</h2>
             </div>
             <div className="grid gap-3">
               <label className="grid gap-1.5">
-                <span className="text-xs font-bold text-slate-600">会の名前</span>
+                <span className="text-xs font-bold text-ink-sub">会の名前</span>
                 <input
                   value={form.eventName}
                   onChange={(event) => setForm({ ...form, eventName: event.target.value })}
-                  className="min-h-10 rounded border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                  className="min-h-10 rounded border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
                   placeholder="例：営業部 歓送迎会"
                 />
               </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-bold text-slate-600">領収書の合計金額</span>
+                  <span className="text-xs font-bold text-ink-sub">領収書の合計金額</span>
                   <input
                     inputMode="numeric"
                     value={form.totalAmount || ""}
                     onChange={(event) => setForm({ ...form, totalAmount: numberValue(event.target.value) })}
-                    className="min-h-10 rounded border border-line bg-white px-3 text-base font-black outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                    className="min-h-10 rounded border border-line bg-white px-3 text-base font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
                     placeholder="50000"
                   />
                 </label>
+                <div className="grid gap-1.5 sm:col-span-2">
+                  <span className="text-xs font-bold text-ink-sub">精算方法</span>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {(Object.keys(workflowLabels) as WorkflowMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setWorkflowMode(mode)}
+                        className={`min-h-11 rounded-md border px-3 text-sm font-bold transition sm:min-h-10 ${
+                          workflowMode === mode
+                            ? "border-brand bg-brand text-white"
+                            : "border-line bg-surface text-ink hover:border-brand hover:bg-white"
+                        }`}
+                      >
+                        {workflowLabels[mode]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {workflowMode === "auto" && (
                   <label className="grid gap-1.5">
-                    <span className="text-xs font-bold text-slate-600">丸め単位</span>
+                    <span className="text-xs font-bold text-ink-sub">丸め単位</span>
                     <select
                       value={form.roundingUnit}
                       onChange={(event) => setForm({ ...form, roundingUnit: Number(event.target.value) })}
-                      className="min-h-10 rounded border border-line bg-white px-3 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                      className="min-h-10 rounded border border-line bg-white px-3 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
                     >
                       {roundingUnits.map((unit) => (
                         <option key={unit} value={unit}>{unit.toLocaleString("ja-JP")}円単位</option>
@@ -799,11 +859,11 @@ export default function Home() {
                 )}
               </div>
               <label className="grid gap-1.5">
-                <span className="text-xs font-bold text-slate-600">任意メモ</span>
+                <span className="text-xs font-bold text-ink-sub">任意メモ</span>
                 <textarea
                   value={form.note}
                   onChange={(event) => setForm({ ...form, note: event.target.value })}
-                  className="min-h-16 rounded border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                  className="min-h-16 rounded border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
                   placeholder="振込期限や補足を入れられます"
                 />
               </label>
@@ -811,10 +871,10 @@ export default function Home() {
           </div>
 
           {workflowMode === "auto" ? (
-          <div className="rounded-lg border border-line bg-white p-4 shadow-soft">
+          <div className="rounded-md border border-line bg-white p-4">
             <div className="mb-3 flex items-center gap-2 border-b border-line pb-2">
               <Sparkles size={16} className="text-brand" aria-hidden="true" />
-              <h2 className="text-base font-black">2. グループと人数</h2>
+              <h2 className="text-base font-bold">参加者の内訳</h2>
             </div>
             <div className="mb-3 grid gap-1.5 sm:grid-cols-3">
               {(Object.keys(modeLabels) as GroupMode[]).map((mode) => (
@@ -822,75 +882,78 @@ export default function Home() {
                   key={mode}
                   type="button"
                   onClick={() => changeMode(mode)}
-                  className={`min-h-9 rounded border px-2.5 text-xs font-black transition ${
+                  className={`min-h-11 rounded-md border px-2.5 text-xs font-bold transition sm:min-h-9 ${
                     form.mode === mode
                       ? "border-brand bg-slate-100 text-brand"
-                      : "border-line bg-slate-50 text-ink hover:border-brand hover:bg-white"
+                      : "border-line bg-surface text-ink hover:border-brand hover:bg-white"
                   }`}
                 >
                   {modeLabels[mode]}
                 </button>
               ))}
             </div>
-            <p className="mb-3 text-sm font-bold leading-6 text-slate-600">
+            <p className="mb-3 text-sm font-bold leading-6 text-ink-sub">
               参加する役職・年次の人数を調整してください。金額の差は選んだ強さに応じて自動計算します。
             </p>
-            <p className="mb-2 text-xs font-black text-slate-500">傾斜の強さ</p>
+            <p className="mb-2 text-xs font-bold text-muted">傾斜の強さ</p>
             <div className="mb-3 grid grid-cols-3 gap-1.5">
               {(Object.keys(presetLabels) as PresetKey[]).map((key) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => applyPreset(key)}
-                  className={`min-h-9 rounded border px-2.5 text-xs font-black transition ${
+                  className={`min-h-11 rounded-md border px-2.5 py-1 text-xs font-bold transition sm:min-h-9 ${
                     preset === key
                       ? "border-brand bg-brand text-white"
-                      : "border-line bg-slate-50 text-ink hover:border-brand hover:bg-white"
+                      : "border-line bg-surface text-ink hover:border-brand hover:bg-white"
                   }`}
                 >
-                  {presetLabels[key]}
+                  <span className="block">{presetLabels[key]}</span>
+                  <span className={`mt-0.5 block text-[10px] font-bold ${preset === key ? "text-brand-soft" : "text-muted"}`}>
+                    部長と一般の差：約 {getPresetDifference(form.totalAmount, form.roundingUnit, form.groups, key)}
+                  </span>
                 </button>
               ))}
             </div>
             <div className="space-y-2">
-              {form.groups.map((group) => (
-                <div key={group.id} className="rounded border border-line bg-slate-50 p-2.5">
+              {autoRoleRows.map((group) => (
+                <div key={group.id} className={`rounded-md border border-line p-1.5 ${group.people > 0 ? "bg-surface" : "bg-surface/60 text-muted"}`}>
                   <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_152px] sm:items-center">
                     {form.mode === "free" ? (
                       <label className="grid gap-1">
-                        <span className="text-xs font-bold text-slate-500">グループ名</span>
+                        <span className="text-xs font-bold text-muted">グループ名</span>
                         <input
                           value={group.label}
                           onChange={(event) => updateGroup(group.id, { label: event.target.value })}
-                          className="min-h-9 w-full rounded border border-line bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                          className="min-h-11 w-full rounded-md border border-line bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-8"
                         />
                       </label>
                     ) : (
                       <div>
-                        <p className="text-sm font-black text-ink">{group.label}</p>
+                        <p className="text-sm font-bold text-ink">{displayGroupLabel(group)}</p>
                       </div>
                     )}
                     <div className="flex items-center justify-between gap-2 sm:justify-end">
                       <button
                         type="button"
                         onClick={() => updatePeople(group.id, group.people - 1)}
-                        className="grid size-9 shrink-0 place-items-center rounded border border-line bg-white text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
-                        aria-label={`${group.label}を1名減らす`}
+                        className="grid size-11 shrink-0 place-items-center rounded-md border border-line bg-white text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:size-8"
+                        aria-label={`${displayGroupLabel(group)}を1名減らす`}
                       >
                         <Minus size={15} aria-hidden="true" />
                       </button>
                       <input
                         inputMode="numeric"
-                        aria-label={`${group.label}の人数`}
+                        aria-label={`${displayGroupLabel(group)}の人数`}
                         value={group.people}
                         onChange={(event) => updatePeople(group.id, numberValue(event.target.value))}
-                        className="h-9 w-14 rounded border border-line bg-white px-2 text-center text-sm font-black outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                        className="h-11 w-14 rounded-md border border-line bg-white px-2 text-center text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:h-8"
                       />
                       <button
                         type="button"
                         onClick={() => updatePeople(group.id, group.people + 1)}
-                        className="grid size-9 shrink-0 place-items-center rounded border border-line bg-white text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
-                        aria-label={`${group.label}を1名増やす`}
+                        className="grid size-11 shrink-0 place-items-center rounded-md border border-line bg-white text-ink transition hover:border-brand hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:size-8"
+                        aria-label={`${displayGroupLabel(group)}を1名増やす`}
                       >
                         <Plus size={15} aria-hidden="true" />
                       </button>
@@ -899,9 +962,26 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <details className="mt-3 rounded border border-line bg-white p-3">
-              <summary className="cursor-pointer text-sm font-black text-slate-600">参加者名を入力する（任意）</summary>
-              <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
+            {addableRoleRows.length > 0 && (
+              <details className="mt-2 rounded-md border border-dashed border-line bg-white p-2">
+                <summary className="cursor-pointer text-sm font-bold text-brand">+ 区分を追加</summary>
+                <div className="mt-2 grid gap-1.5">
+                  {addableRoleRows.map((group) => (
+                    <button
+                      key={group.id}
+                      type="button"
+                      onClick={() => updatePeople(group.id, 1)}
+                      className="min-h-11 rounded-md border border-line bg-surface px-3 text-left text-sm font-bold text-ink hover:border-brand hover:bg-white sm:min-h-9"
+                    >
+                      {displayGroupLabel(group)}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            )}
+            <details className="mt-3 rounded-md border border-line bg-white p-3">
+              <summary className="cursor-pointer text-sm font-bold text-ink-sub">参加者名を入力する（任意）</summary>
+              <p className="mt-2 text-xs font-bold leading-5 text-muted">
                 名前を入れると参加者向け文面が個別金額の一覧になります。名前を入力した場合も、内容はブラウザ内でのみ処理されます。
               </p>
               <div className="mt-3 grid gap-2">
@@ -909,43 +989,43 @@ export default function Home() {
                   const names = (form.participantNames[group.id] ?? "").split(/\r?\n/);
 
                   return (
-                    <div key={group.id} className="grid gap-2 rounded border border-line bg-slate-50 p-2.5">
-                      <p className="text-xs font-black text-slate-600">{group.label}</p>
+                    <div key={group.id} className="grid gap-2 rounded-md border border-line bg-surface p-2.5">
+                      <p className="text-xs font-bold text-ink-sub">{displayGroupLabel(group)}</p>
                       {Array.from({ length: group.people }).map((_, index) => (
                         <input
                           key={`${group.id}-${index}`}
                           value={names[index] ?? ""}
                           onChange={(event) => updateParticipantNameAt(group.id, index, event.target.value)}
-                          className="min-h-9 rounded border border-line bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
-                          placeholder={`${group.label} ${index + 1}人目`}
+                          className="min-h-11 rounded-md border border-line bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
+                          placeholder={numberedName(displayGroupLabel(group), index)}
                         />
                       ))}
                     </div>
                   );
                 })}
                 {result.totalPeople === 0 && (
-                  <p className="rounded border border-line bg-slate-50 px-2.5 py-2 text-xs font-bold text-slate-500">
+                  <p className="rounded border border-line bg-surface px-2.5 py-2 text-xs font-bold text-muted">
                     人数を1名以上にすると、名前入力欄が表示されます。
                   </p>
                 )}
               </div>
             </details>
-            <details className="mt-3 rounded border border-line bg-white p-3">
-              <summary className="cursor-pointer text-sm font-black text-slate-600">詳細設定：傾斜を手動調整する</summary>
+            <details className="mt-3 rounded-md border border-line bg-white p-3">
+              <summary className="cursor-pointer text-sm font-bold text-ink-sub">詳細設定：傾斜を手動調整する</summary>
               <div className="mt-3 grid gap-2">
                 {form.groups.map((group) => (
-                  <div key={group.id} className="grid gap-2 rounded border border-line bg-slate-50 p-2.5 sm:grid-cols-[minmax(0,1fr)_96px] sm:items-end">
+                  <div key={group.id} className="grid gap-2 rounded-md border border-line bg-surface p-2.5 sm:grid-cols-[minmax(0,1fr)_96px] sm:items-end">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-ink">{group.label}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">通常は変更不要です</p>
+                      <p className="truncate text-sm font-bold text-ink">{displayGroupLabel(group)}</p>
+                      <p className="mt-1 text-xs font-bold text-muted">通常は変更不要です</p>
                     </div>
                     <label className="grid gap-1">
-                      <span className="text-xs font-bold text-slate-500">重み</span>
+                      <span className="text-xs font-bold text-muted">重み</span>
                       <input
                         inputMode="decimal"
                         value={group.weight}
                         onChange={(event) => updateGroup(group.id, { weight: Number(event.target.value) || 0 })}
-                        className="min-h-9 w-full rounded border border-line bg-white px-2.5 text-center text-sm font-black outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                        className="min-h-11 w-full rounded-md border border-line bg-white px-2.5 text-center text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                       />
                     </label>
                   </div>
@@ -965,7 +1045,7 @@ export default function Home() {
             />
           )}
 
-          <div className="lg:hidden">
+          <div ref={resultSectionRef} className="lg:hidden">
             {workflowMode === "auto" ? (
               <ResultCard
                 result={result}
@@ -986,38 +1066,52 @@ export default function Home() {
             )}
           </div>
 
-          <div className="rounded-lg border border-line bg-white p-4 shadow-soft">
-            <h2 className="mb-3 border-b border-line pb-2 text-base font-black">4. 生成された文面</h2>
-            <GeneratedBlock
-              icon={<Mail size={16} />}
-              title="上司確認用"
-              text={workflowMode === "auto" ? approvalMessage : personalApprovalMessage}
-              buttonLabel="確認文をコピー"
-            />
-            <GeneratedBlock
-              icon={<Send size={16} />}
-              title="参加者向けメール用"
-              text={workflowMode === "auto" ? requestMessage : personalRequestMessage}
-              buttonLabel="依頼文をコピー"
-            >
-              <MailtoButton subject={paymentSubject} body={workflowMode === "auto" ? requestMessage : personalRequestMessage} />
-            </GeneratedBlock>
-            <GeneratedBlock
-              icon={<MessageSquareText size={16} />}
-              title="LINE/Teams用短縮文"
-              text={workflowMode === "auto" ? lineMessage : personalLineMessage}
-              buttonLabel="LINE/Teams用にコピー"
-            >
-              <ShareButton text={workflowMode === "auto" ? lineMessage : personalLineMessage} />
-            </GeneratedBlock>
-            <GeneratedBlock icon={<Clipboard size={16} />} title="御礼文" text={thanksMessage} buttonLabel="御礼文をコピー" />
+          <div className="rounded-md border border-line bg-white p-4">
+            <h2 className="mb-3 border-b border-line pb-2 text-base font-bold">送る文面</h2>
+            <div className="-mx-1 mb-3 flex gap-1 overflow-x-auto px-1 pb-1">
+              {messageTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveMessageTab(tab.id)}
+                  className={`min-h-11 shrink-0 rounded-md border px-3 text-sm font-bold transition ${
+                    activeMessageTab === tab.id
+                      ? "border-brand bg-brand text-white"
+                      : "border-line bg-surface text-ink hover:border-brand hover:bg-white"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="rounded-md border border-line bg-surface p-3">
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-ink">
+                  <span className="text-brand">
+                    {activeMessage.id === "approval" && <Mail size={16} aria-hidden="true" />}
+                    {activeMessage.id === "participant" && <Send size={16} aria-hidden="true" />}
+                    {activeMessage.id === "chat" && <MessageSquareText size={16} aria-hidden="true" />}
+                    {activeMessage.id === "thanks" && <Clipboard size={16} aria-hidden="true" />}
+                  </span>
+                  <h3>{activeMessage.label}</h3>
+                </div>
+                <div className="grid gap-1.5 sm:flex sm:items-center">
+                  <CopyButton text={activeMessage.text} label={activeMessage.copyLabel} />
+                  {activeMessage.id === "participant" && <MailtoButton subject={paymentSubject} body={activeMessage.text} />}
+                  {activeMessage.id === "chat" && <ShareButton text={activeMessage.text} />}
+                </div>
+              </div>
+              <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-line bg-white p-3 text-sm leading-6 text-ink">
+                {activeMessage.text}
+              </pre>
+            </div>
           </div>
 
           <div className="flex justify-center pb-2">
             <button
               type="button"
               onClick={resetInputs}
-              className="min-h-9 rounded border border-line bg-transparent px-3 py-1.5 text-xs font-bold text-slate-500 transition hover:border-slate-300 hover:bg-white hover:text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+              className="min-h-11 rounded-md border border-line bg-transparent px-3 py-1.5 text-xs font-bold text-muted transition hover:border-line-strong hover:bg-white hover:text-ink focus:outline-none focus:ring-2 focus:ring-brand/30 focus:ring-offset-2 sm:min-h-9"
             >
               入力をリセット
             </button>
@@ -1047,6 +1141,29 @@ export default function Home() {
           )}
         </aside>
       </div>
+      <button
+        type="button"
+        onClick={scrollToResult}
+        className="fixed inset-x-0 bottom-0 z-30 flex min-h-16 items-center justify-between border-t border-line bg-white px-4 py-3 text-left shadow-none lg:hidden"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      >
+        <span>
+          <span className="block text-xs font-bold text-muted">合計</span>
+          <span className="block text-lg font-bold text-ink">{formatYen(mobileTotal)}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span className={`inline-flex min-h-8 items-center gap-1 rounded-md px-2.5 text-xs font-bold ${
+            mobileIsValid ? "bg-ok-soft text-ok" : "bg-warn-soft text-warn"
+          }`}>
+            {mobileIsValid && <Check size={14} aria-hidden="true" />}
+            {mobileIsValid ? "合計一致" : `差額 ${formatAdjustment(mobileDifference)}`}
+          </span>
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-brand">
+            <ChevronUp size={15} aria-hidden="true" />
+            全展開
+          </span>
+        </span>
+      </button>
     </main>
   );
 }
@@ -1069,35 +1186,35 @@ function PersonalModeInputs({
   onParticipantRemove: (id: string) => void;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-white p-4 shadow-soft">
+    <div className="rounded-md border border-line bg-white p-4">
       <div className="mb-3 flex items-center gap-2 border-b border-line pb-2">
         <Sparkles size={16} className="text-brand" aria-hidden="true" />
-        <h2 className="text-base font-black">2. 個人別会費</h2>
+        <h2 className="text-base font-bold">参加者の内訳</h2>
       </div>
-      <p className="mb-3 text-sm font-bold leading-6 text-slate-600">
+      <p className="mb-3 text-sm font-bold leading-6 text-ink-sub">
         役職ごとの会費を決めて、参加者名と役職を入力します。Excelの精算表を作る感覚で、個人別の案内文まで作れます。
       </p>
 
       <div className="mb-4">
-        <h3 className="mb-2 text-xs font-black text-slate-500">役職別会費</h3>
+        <h3 className="mb-2 text-xs font-bold text-muted">役職別会費</h3>
         <div className="grid gap-2">
           {roles.map((role) => (
-            <div key={role.id} className="grid gap-2 rounded border border-line bg-slate-50 p-2.5 sm:grid-cols-[minmax(0,1fr)_128px] sm:items-end">
+            <div key={role.id} className="grid gap-2 rounded-md border border-line bg-surface p-2.5 sm:grid-cols-[minmax(0,1fr)_128px] sm:items-end">
               <label className="grid gap-1">
-                <span className="text-xs font-bold text-slate-500">役職</span>
+                <span className="text-xs font-bold text-muted">役職</span>
                 <input
                   value={role.label}
                   onChange={(event) => onRoleChange(role.id, { label: event.target.value })}
-                  className="min-h-9 rounded border border-line bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                  className="min-h-11 rounded-md border border-line bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                 />
               </label>
               <label className="grid gap-1">
-                <span className="text-xs font-bold text-slate-500">会費</span>
+                <span className="text-xs font-bold text-muted">会費</span>
                 <input
                   inputMode="numeric"
                   value={role.fee || ""}
                   onChange={(event) => onRoleChange(role.id, { fee: numberValue(event.target.value) })}
-                  className="min-h-9 rounded border border-line bg-white px-2.5 text-right text-sm font-black outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                  className="min-h-11 rounded-md border border-line bg-white px-2.5 text-right text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                   placeholder="7000"
                 />
               </label>
@@ -1108,11 +1225,11 @@ function PersonalModeInputs({
 
       <div>
         <div className="mb-2 flex items-center justify-between gap-3">
-          <h3 className="text-xs font-black text-slate-500">参加者</h3>
+          <h3 className="text-xs font-bold text-muted">参加者</h3>
           <button
             type="button"
             onClick={onParticipantAdd}
-            className="inline-flex min-h-8 items-center justify-center gap-1 rounded border border-line bg-white px-2.5 text-xs font-black text-ink transition hover:border-brand hover:text-brand"
+            className="inline-flex min-h-11 items-center justify-center gap-1 rounded-md border border-line bg-white px-2.5 text-xs font-bold text-ink transition hover:border-brand hover:text-brand sm:min-h-8"
           >
             <Plus size={14} aria-hidden="true" />
             追加
@@ -1120,23 +1237,23 @@ function PersonalModeInputs({
         </div>
         <div className="grid gap-2">
           {participants.map((participant, index) => (
-            <div key={participant.id} className="rounded border border-line bg-slate-50 p-2.5">
+            <div key={participant.id} className="rounded-md border border-line bg-surface p-2.5">
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_132px_auto] sm:items-end">
                 <label className="grid gap-1">
-                  <span className="text-xs font-bold text-slate-500">氏名</span>
+                  <span className="text-xs font-bold text-muted">氏名</span>
                   <input
                     value={participant.name}
                     onChange={(event) => onParticipantChange(participant.id, { name: event.target.value })}
-                    className="min-h-9 rounded border border-line bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                    className="min-h-11 rounded-md border border-line bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                     placeholder={`参加者${index + 1}`}
                   />
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-xs font-bold text-slate-500">役職</span>
+                  <span className="text-xs font-bold text-muted">役職</span>
                   <select
                     value={participant.roleId}
                     onChange={(event) => onParticipantChange(participant.id, { roleId: event.target.value })}
-                    className="min-h-9 rounded border border-line bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-blue-100"
+                    className="min-h-11 rounded-md border border-line bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                   >
                     {roles.map((role) => (
                       <option key={role.id} value={role.id}>{role.label || "未設定"}</option>
@@ -1147,14 +1264,14 @@ function PersonalModeInputs({
                   <button
                     type="button"
                     onClick={() => onParticipantDuplicate(participant)}
-                    className="min-h-9 rounded border border-line bg-white px-2 text-xs font-black text-slate-600 transition hover:border-brand hover:text-brand"
+                    className="min-h-11 rounded-md border border-line bg-white px-2 text-xs font-bold text-ink-sub transition hover:border-brand hover:text-brand sm:min-h-9"
                   >
                     複製
                   </button>
                   <button
                     type="button"
                     onClick={() => onParticipantRemove(participant.id)}
-                    className="grid min-h-9 place-items-center rounded border border-line bg-white px-2 text-slate-500 transition hover:border-rose-200 hover:text-rose-700"
+                    className="grid min-h-11 place-items-center rounded-md border border-line bg-white px-2 text-muted transition hover:border-warn-soft hover:text-warn sm:min-h-9"
                     aria-label={`${participant.name || `参加者${index + 1}`}を削除`}
                   >
                     <Trash2 size={14} aria-hidden="true" />
@@ -1164,7 +1281,7 @@ function PersonalModeInputs({
             </div>
           ))}
           {participants.length === 0 && (
-            <p className="rounded border border-line bg-slate-50 px-2.5 py-2 text-xs font-bold text-slate-500">
+            <p className="rounded border border-line bg-surface px-2.5 py-2 text-xs font-bold text-muted">
               参加者を追加すると、個人別の精算表を作成できます。
             </p>
           )}
@@ -1190,41 +1307,41 @@ function PersonalResultCard({
   tableText: string;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-white p-4 shadow-soft">
+    <div className="rounded-md border border-line bg-white p-4">
       <div className="mb-3 flex items-center justify-between gap-3 border-b border-line pb-2">
-        <h2 className="text-base font-black">3. 精算結果</h2>
-        <span className={`shrink-0 text-xs font-black ${difference === 0 ? "text-brand" : "text-accent"}`}>
+        <h2 className="text-base font-bold">精算結果</h2>
+        <span className={`shrink-0 text-xs font-bold ${difference === 0 ? "text-brand" : "text-brand"}`}>
           {difference === 0 ? "差額なし" : "差額あり"}
         </span>
       </div>
-      <div className="mb-3 rounded border border-line bg-slate-50 p-3">
-        <p className="text-xs font-black text-slate-500">回収予定額</p>
-        <p className="mt-1 text-2xl font-black tracking-normal text-ink">{formatYen(collectionTotal)}</p>
+      <div className="mb-3 rounded-md border border-line bg-surface p-3">
+        <p className="text-xs font-bold text-muted">回収予定額</p>
+        <p className="mt-1 text-[24px] font-bold tracking-normal text-ink [font-variant-numeric:tabular-nums]">{formatYen(collectionTotal)}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded border border-line bg-white px-2.5 py-2">
-            <p className="text-xs font-bold text-slate-500">参加人数</p>
-            <p className="font-black text-ink">{participantCount}名</p>
+          <div className="rounded-md border border-line bg-white px-2.5 py-2">
+            <p className="text-xs font-bold text-muted">参加人数</p>
+            <p className="font-bold text-ink">{participantCount}名</p>
           </div>
-          <div className="rounded border border-line bg-white px-2.5 py-2">
-            <p className="text-xs font-bold text-slate-500">差額</p>
-            <p className="font-black text-ink">{formatAdjustment(difference)}</p>
+          <div className="rounded-md border border-line bg-white px-2.5 py-2">
+            <p className="text-xs font-bold text-muted">差額</p>
+            <p className="font-bold text-ink">{formatAdjustment(difference)}</p>
           </div>
         </div>
       </div>
-      <div className="overflow-hidden rounded border border-line bg-white">
-        <div className="grid grid-cols-[minmax(0,1fr)_92px] border-b border-line bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
+      <div className="overflow-hidden rounded-md border border-line bg-white">
+        <div className="grid grid-cols-[minmax(0,1fr)_92px] border-b border-line bg-surface px-3 py-2 text-xs font-bold text-muted">
           <span>氏名</span>
           <span className="text-right">金額</span>
         </div>
         {rows.map((row) => (
-          <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 text-sm last:border-b-0">
-            <p className="truncate font-black text-ink">{row.name}</p>
-            <p className="text-right font-black text-ink">{formatYenText(row.amount)}</p>
+          <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 text-sm">
+            <p className="truncate font-bold text-ink">{row.name}</p>
+            <p className="text-right font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYenText(row.amount)}</p>
           </div>
         ))}
-        <div className="grid grid-cols-[minmax(0,1fr)_92px] items-center bg-slate-50 px-3 py-2.5 text-sm">
-          <p className="font-black text-ink">合計</p>
-          <p className="text-right font-black text-ink">{formatYenText(collectionTotal)}</p>
+        <div className="grid grid-cols-[minmax(0,1fr)_92px] items-center bg-surface px-3 py-2.5 text-sm">
+          <p className="font-bold text-ink">合計</p>
+          <p className="text-right font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYenText(collectionTotal)}</p>
         </div>
       </div>
       <div className="mt-3 grid gap-1.5 text-sm">
@@ -1233,7 +1350,7 @@ function PersonalResultCard({
         <SummaryLine label="差額（回収 - 領収）" value={formatAdjustment(difference)} />
       </div>
       {difference !== 0 && (
-        <p className="mt-3 rounded border border-amber-100 bg-amber-50 px-2.5 py-2 text-xs font-bold leading-5 text-amber-800">
+        <p className="mt-3 rounded border border-line bg-surface px-2.5 py-2 text-xs font-bold leading-5 text-ink-sub">
           差額は補助金・会社負担・幹事調整分としてご確認ください。
         </p>
       )}
@@ -1254,71 +1371,79 @@ function ResultCard({
   result: ReturnType<typeof calculateSettlement>;
   totalAmount: number;
   tableText: string;
-  paymentRows?: Array<{ id: string; name: string; amount: number }>;
+  paymentRows?: Array<{ id: string; role?: string; name: string; amount: number }>;
   validationMessages: string[];
 }) {
+  const difference = result.finalTotal - totalAmount;
+
   return (
-    <div className="rounded-lg border border-line bg-white p-4 shadow-soft">
+    <div className={`rounded-md border bg-white p-4 ${result.isValid ? "border-line" : "border-warn-soft"}`}>
       <div className="mb-3 flex items-center justify-between gap-3 border-b border-line pb-2">
-        <h2 className="text-base font-black">3. 精算結果</h2>
-        <span className={`shrink-0 text-xs font-black ${result.isValid ? "text-brand" : "text-rose-700"}`}>
-          {result.isValid ? "合計一致" : "要確認"}
+        <h2 className="text-base font-bold">精算結果</h2>
+        <span className={`inline-flex min-h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-bold ${
+          result.isValid ? "bg-ok-soft text-ok" : "bg-warn-soft text-warn"
+        }`}>
+          {result.isValid && <Check size={14} aria-hidden="true" />}
+          {result.isValid ? "合計一致" : `差額 ${formatAdjustment(difference)}`}
         </span>
       </div>
       {validationMessages.length > 0 && (
-        <div className="mb-3 rounded border border-rose-100 bg-rose-50 p-2.5 text-sm font-bold leading-6 text-rose-700">
+        <div className="mb-3 rounded border border-warn-soft bg-warn-soft p-2.5 text-sm font-bold leading-6 text-warn">
           {validationMessages.map((message) => <p key={message}>{message}</p>)}
         </div>
       )}
-      <div className="mb-3 rounded border border-line bg-slate-50 p-3">
-        <p className="text-xs font-black text-slate-500">回収予定額</p>
-        <p className="mt-1 text-2xl font-black tracking-normal text-ink">{formatYen(result.finalTotal)}</p>
+      <div className="mb-3 rounded-md border border-line bg-surface p-3">
+        <p className="text-xs font-bold text-muted">回収予定額</p>
+        <p className="mt-1 text-[24px] font-bold tracking-normal text-ink [font-variant-numeric:tabular-nums]">{formatYen(result.finalTotal)}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded border border-line bg-white px-2.5 py-2">
-            <p className="text-xs font-bold text-slate-500">人数</p>
-            <p className="font-black text-ink">{result.totalPeople}名</p>
+          <div className="rounded-md border border-line bg-white px-2.5 py-2">
+            <p className="text-xs font-bold text-muted">人数</p>
+            <p className="font-bold text-ink">{result.totalPeople}名</p>
           </div>
-          <div className="rounded border border-line bg-white px-2.5 py-2">
-            <p className="text-xs font-bold text-slate-500">端数調整</p>
-            <p className="font-black text-ink">{formatYen(result.roundingAdjustment)}</p>
+          <div className="rounded-md border border-line bg-white px-2.5 py-2">
+            <p className="text-xs font-bold text-muted">端数調整</p>
+            <p className="font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYen(result.roundingAdjustment)}</p>
           </div>
         </div>
       </div>
-      <div className="overflow-hidden rounded border border-line bg-white">
+      <div className={`overflow-hidden rounded-md border bg-white ${result.isValid ? "border-line" : "border-warn-soft"}`}>
         {paymentRows ? (
           <>
-            <div className="grid grid-cols-[minmax(0,1fr)_92px] border-b border-line bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
-              <span>氏名</span>
+            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-line bg-surface px-3 py-2 text-xs font-bold text-muted">
+              <span>役職</span>
+              <span>名前</span>
               <span className="text-right">金額</span>
             </div>
             {paymentRows.map((row) => (
-              <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 text-sm last:border-b-0">
-                <p className="truncate font-black text-ink">{row.name}</p>
-                <p className="text-right font-black text-ink">{formatYenText(row.amount)}</p>
+              <div key={row.id} className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 text-sm">
+                <p className="truncate text-xs font-bold text-muted">{row.role ?? ""}</p>
+                <p className="truncate font-bold text-ink">{row.name}</p>
+                <p className="text-right font-bold text-ink [font-variant-numeric:tabular-nums]">{formatYenText(row.amount)}</p>
               </div>
             ))}
-            <div className="grid grid-cols-[minmax(0,1fr)_92px] items-center bg-slate-50 px-3 py-2.5 text-sm">
-              <p className="font-black text-ink">合計</p>
-              <p className="text-right font-black text-ink">{formatYenText(result.finalTotal)}</p>
+            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center bg-surface px-3 py-2.5 text-sm font-bold">
+              <p className="text-muted">合計</p>
+              <p className="text-ink">{result.totalPeople}名</p>
+              <p className="text-right text-ink [font-variant-numeric:tabular-nums]">{formatYenText(result.finalTotal)}</p>
             </div>
           </>
         ) : (
           <>
-            <div className="grid grid-cols-[minmax(0,1fr)_72px_92px] border-b border-line bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
-              <span>区分</span>
+            <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-line bg-surface px-3 py-2 text-xs font-bold text-muted">
+              <span>役職</span>
               <span className="text-right">1人</span>
               <span className="text-right">小計</span>
             </div>
             {result.rows.filter((row) => row.people > 0).map((row) => (
-              <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_72px_92px] items-center border-b border-line px-3 py-2.5 last:border-b-0">
+              <div key={row.id} className="grid grid-cols-[64px_minmax(0,1fr)_92px] items-center border-b border-line px-3 py-2.5 last:border-b-0">
                 <div className="min-w-0">
-                  <p className="truncate font-black">{row.label}</p>
-                  <p className="text-xs text-slate-500">{row.people}名</p>
+                  <p className="truncate font-bold">{displayGroupLabel(row)}</p>
+                  <p className="text-xs text-muted">{row.people}名</p>
                 </div>
-                <p className="text-right text-sm font-black">{formatYen(row.finalPerPerson)}</p>
+                <p className="text-right text-sm font-bold [font-variant-numeric:tabular-nums]">{formatYen(row.finalPerPerson)}</p>
                 <div className="text-right">
-                  <p className="text-sm font-black">{formatYen(row.subtotal)}</p>
-                  {row.adjustment !== 0 && <p className="text-xs text-accent">調整 {formatYen(row.adjustment)}</p>}
+                  <p className="text-sm font-bold [font-variant-numeric:tabular-nums]">{formatYen(row.subtotal)}</p>
+                  {row.adjustment !== 0 && <p className="text-xs text-brand">調整 {formatYen(row.adjustment)}</p>}
                 </div>
               </div>
             ))}
@@ -1350,9 +1475,9 @@ function GeneratedBlock({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-3 rounded border border-line bg-slate-50 p-3 last:mb-0">
+    <div className="mb-3 rounded border border-line bg-surface p-3 last:mb-0">
       <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1.5 text-sm font-black text-ink">
+        <div className="flex items-center gap-1.5 text-sm font-bold text-ink">
           <span className="text-brand">{icon}</span>
           <h3>{title}</h3>
         </div>
@@ -1371,8 +1496,8 @@ function GeneratedBlock({
 function SummaryLine({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className={strong ? "font-bold text-white" : "font-bold text-slate-500"}>{label}</span>
-      <span className={strong ? "text-xl font-black text-white" : "font-black text-ink"}>{value}</span>
+      <span className={strong ? "font-bold text-white" : "font-bold text-muted"}>{label}</span>
+      <span className={strong ? "text-lg font-bold text-white" : "font-bold text-ink"}>{value}</span>
     </div>
   );
 }
@@ -1401,7 +1526,7 @@ function FaqCard() {
       answer: "役職や年次に応じて支払額に差をつける精算方法です。役職が上の方が少し多く負担する場面で使われます。"
     },
     {
-      question: "係数を自分で決める必要はありますか？",
+      question: "金額差を自分で決める必要はありますか？",
       answer: "基本的には不要です。分け方と人数を入れ、傾斜の強さを選ぶだけで計算できます。"
     },
     {
@@ -1415,13 +1540,13 @@ function FaqCard() {
   ];
 
   return (
-    <article className="rounded-lg border border-line bg-white p-4 shadow-soft">
-      <h2 className="mb-3 text-base font-black">よくある質問</h2>
+    <article className="rounded-md border border-line bg-white p-4">
+      <h2 className="mb-3 text-base font-bold">よくある質問</h2>
       <dl className="space-y-3">
         {items.map((item) => (
           <div key={item.question}>
-            <dt className="text-sm font-black text-ink">{item.question}</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-600">{item.answer}</dd>
+            <dt className="text-sm font-bold text-ink">{item.question}</dt>
+            <dd className="mt-1 text-sm leading-6 text-ink-sub">{item.answer}</dd>
           </div>
         ))}
       </dl>
@@ -1431,9 +1556,9 @@ function FaqCard() {
 
 function InfoCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <article className="rounded-lg border border-line bg-white p-4 shadow-soft">
-      <h2 className="mb-1.5 text-base font-black">{title}</h2>
-      <p className="text-sm leading-6 text-slate-600">{children}</p>
+    <article className="rounded-md border border-line bg-white p-4">
+      <h2 className="mb-1.5 text-base font-bold">{title}</h2>
+      <p className="text-sm leading-6 text-ink-sub">{children}</p>
     </article>
   );
 }

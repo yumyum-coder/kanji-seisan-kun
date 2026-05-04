@@ -9,14 +9,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#102033",
-        paper: "#f7f9fc",
-        line: "#d8e0ea",
-        brand: "#2f5f9f",
-        accent: "#4b697f"
+        ink: "#111827",
+        "ink-sub": "#374151",
+        muted: "#6b7280",
+        paper: "#ffffff",
+        surface: "#f9fafb",
+        line: "#e5e7eb",
+        "line-strong": "#d1d5db",
+        brand: "#1e40af",
+        "brand-hover": "#1c3a9c",
+        "brand-soft": "#eef2ff",
+        ok: "#047857",
+        "ok-soft": "#ecfdf5",
+        warn: "#b91c1c",
+        "warn-soft": "#fef2f2"
       },
       boxShadow: {
-        soft: "0 1px 2px rgba(16, 32, 51, 0.04)"
+        soft: "none"
       }
     }
   },

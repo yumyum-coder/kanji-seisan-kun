@@ -4,8 +4,9 @@ import "./globals.css";
 
 const notoSansJp = Noto_Sans_JP({
   subsets: ["latin"],
-  weight: ["400", "500", "700", "900"],
-  variable: "--font-sans"
+  weight: ["400", "500", "700"],
+  variable: "--font-sans",
+  display: "swap"
 });
 
 const faqItems = [
@@ -15,7 +16,7 @@ const faqItems = [
       "役職や年次に応じて支払額に差をつける精算方法です。会社の飲み会では、役職が上の方が少し多く負担し、若手の負担を抑える形で使われます。"
   },
   {
-    question: "係数を自分で決める必要はありますか？",
+    question: "金額差を自分で決める必要はありますか？",
     answer:
       "基本的には不要です。役職または年次のグループと人数を入力し、傾斜の強さを選ぶだけで計算できます。必要な場合のみ詳細設定で調整できます。"
   },
