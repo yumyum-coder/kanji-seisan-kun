@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Check, ChevronUp, Clipboard, Mail, MessageSquareText, Minus, Plus, Send, Share2, Trash2 } from "lucide-react";
+import { Check, ChevronUp, Clipboard, Mail, MessageSquareText, Send, Share2 } from "lucide-react";
 import {
   calculateSettlement,
   formatYen,
@@ -25,6 +25,12 @@ type PersonalParticipant = {
   roleId: string;
 };
 
+type SettlementParticipant = {
+  id: string;
+  name: string;
+  groupId: string;
+};
+
 type PersonalFormState = {
   roles: FeeRole[];
   participants: PersonalParticipant[];
@@ -39,12 +45,6 @@ const presetLabels: Record<PresetKey, string> = {
   gentle: "やさしめ",
   standard: "標準",
   strong: "強め"
-};
-
-const modeLabels: Record<GroupMode, string> = {
-  role: "役職で分ける",
-  year: "年次で分ける",
-  free: "自由にグループを作る"
 };
 
 const roundingUnits = [1, 10, 100, 500, 1000];
@@ -166,13 +166,24 @@ const groupTemplates: Record<GroupMode, Array<Omit<RoleGroup, "weight">>> = {
   ]
 };
 
+const defaultParticipantRows: SettlementParticipant[] = [
+  { id: "row-1", name: "山田さん", groupId: "director" },
+  { id: "row-2", name: "佐藤さん", groupId: "manager" },
+  { id: "row-3", name: "", groupId: "year7" },
+  { id: "row-4", name: "", groupId: "year7" },
+  { id: "row-5", name: "", groupId: "year1" }
+];
+
 const defaultFeeRoles: FeeRole[] = [
   { id: "director", label: "部長", fee: 7000 },
   { id: "manager", label: "課長", fee: 5000 },
   { id: "management", label: "管理職", fee: 5000 },
-  { id: "senior", label: "7〜9年目", fee: 4000 },
-  { id: "junior", label: "3年目", fee: 3000 },
-  { id: "newcomer", label: "1年目", fee: 1000 }
+  { id: "year10", label: "10年目以上", fee: 4500 },
+  { id: "year7", label: "7〜9年目", fee: 4000 },
+  { id: "year4", label: "4〜6年目", fee: 3500 },
+  { id: "year3", label: "3年目", fee: 3000 },
+  { id: "year2", label: "2年目", fee: 2500 },
+  { id: "year1", label: "1年目", fee: 1000 }
 ];
 
 const initialPersonalForm: PersonalFormState = {
@@ -180,7 +191,9 @@ const initialPersonalForm: PersonalFormState = {
   participants: [
     { id: "participant-1", name: "山田さん", roleId: "director" },
     { id: "participant-2", name: "佐藤さん", roleId: "manager" },
-    { id: "participant-3", name: "田中さん", roleId: "junior" }
+    { id: "participant-3", name: "", roleId: "year7" },
+    { id: "participant-4", name: "", roleId: "year7" },
+    { id: "participant-5", name: "", roleId: "year1" }
   ]
 };
 
@@ -197,18 +210,80 @@ function buildGroups(mode: GroupMode, preset: PresetKey, previousGroups: RoleGro
 }
 
 function normalizeGroupLabels(groups: RoleGroup[]) {
-  const legacyLabels: Record<string, string> = {
-    "多め": "グループ1",
-    "上位者": "グループ1",
-    "標準": "グループ2",
-    "中堅": "グループ2",
-    "少なめ": "グループ3",
-    "かなり少なめ": "グループ4"
+  return groups;
+}
+
+function syncSettlementParticipants(
+  participants: SettlementParticipant[],
+  count: number
+): SettlementParticipant[] {
+  const safeCount = Math.max(0, Math.floor(count));
+  const next = participants.slice(0, safeCount).map((participant) => ({
+    ...participant,
+    groupId: normalizeParticipantGroupId(participant.groupId)
+  }));
+
+  while (next.length < safeCount) {
+    next.push({
+      id: `row-${Date.now()}-${next.length}`,
+      name: "",
+      groupId: "year7"
+    });
+  }
+
+  return next;
+}
+
+function normalizeParticipantGroupId(groupId: string) {
+  const legacyMap: Record<string, string> = {
+    senior: "year7",
+    junior: "year3",
+    newcomer: "year1"
   };
+
+  return legacyMap[groupId] ?? groupId;
+}
+
+function syncPersonalParticipants(
+  participants: PersonalParticipant[],
+  count: number
+): PersonalParticipant[] {
+  const safeCount = Math.max(0, Math.floor(count));
+  const next = participants.slice(0, safeCount);
+
+  while (next.length < safeCount) {
+    next.push({
+      id: `participant-${Date.now()}-${next.length}`,
+      name: "",
+      roleId: "year7"
+    });
+  }
+
+  return next;
+}
+
+function participantsFromGroups(groups: RoleGroup[], participantNames: Record<string, string>) {
+  return groups.flatMap<SettlementParticipant>((group) => {
+    const names = (participantNames[group.id] ?? "").split(/\r?\n/);
+
+    return Array.from({ length: group.people }).map((_, index) => ({
+      id: `row-${group.id}-${index}`,
+      name: names[index]?.trim() ?? "",
+      groupId: normalizeParticipantGroupId(group.id)
+    }));
+  });
+}
+
+function aggregateGroups(groups: RoleGroup[], participants: SettlementParticipant[]) {
+  const counts = participants.reduce<Record<string, number>>((acc, participant) => {
+    const groupId = normalizeParticipantGroupId(participant.groupId);
+    acc[groupId] = (acc[groupId] ?? 0) + 1;
+    return acc;
+  }, {});
 
   return groups.map((group) => ({
     ...group,
-    label: legacyLabels[group.label] ?? group.label
+    people: counts[group.id] ?? 0
   }));
 }
 
@@ -216,20 +291,24 @@ type FormState = {
   mode: GroupMode;
   eventName: string;
   totalAmount: number;
+  participantCount: number;
   roundingUnit: number;
   note: string;
   groups: RoleGroup[];
   participantNames: Record<string, string>;
+  participants: SettlementParticipant[];
 };
 
 const initialForm: FormState = {
   mode: "role",
   eventName: "営業部 歓送迎会",
   totalAmount: 50000,
+  participantCount: defaultParticipantRows.length,
   roundingUnit: 500,
   note: "お手すきの際にご対応いただけますと幸いです。",
   groups: buildGroups("role", "standard"),
-  participantNames: {}
+  participantNames: {},
+  participants: defaultParticipantRows
 };
 
 function copyText(text: string, onDone: () => void) {
@@ -421,12 +500,19 @@ export default function Home() {
           mode: storedMode,
           eventName: parsed.eventName ?? initialForm.eventName,
           totalAmount: parsed.totalAmount ?? initialForm.totalAmount,
+          participantCount: parsed.participantCount ?? parsed.participants?.length ?? initialForm.participantCount,
           roundingUnit: parsed.roundingUnit ?? initialForm.roundingUnit,
           note: parsed.note ?? initialForm.note,
           groups: parsed.mode && parsed.groups
             ? buildGroups(storedMode, preset, normalizeGroupLabels(parsed.groups))
             : buildGroups(storedMode, preset),
-          participantNames: parsed.participantNames ?? {}
+          participantNames: parsed.participantNames ?? {},
+          participants: syncSettlementParticipants(
+            parsed.participants?.length
+              ? parsed.participants
+              : participantsFromGroups(parsed.groups ?? initialForm.groups, parsed.participantNames ?? {}),
+            parsed.participantCount ?? parsed.participants?.length ?? initialForm.participantCount
+          )
         });
       } catch {
         window.localStorage.removeItem("kanji-seisan-form");
@@ -459,14 +545,19 @@ export default function Home() {
     window.localStorage.setItem("kanji-seisan-personal-form", JSON.stringify(personalForm));
   }, [personalForm]);
 
+  const settlementGroups = useMemo(
+    () => aggregateGroups(form.groups, form.participants),
+    [form.groups, form.participants]
+  );
+
   const result = useMemo(
     () =>
       calculateSettlement({
         totalAmount: form.totalAmount,
         roundingUnit: form.roundingUnit,
-        groups: form.groups
+        groups: settlementGroups
       }),
-    [form]
+    [form.totalAmount, form.roundingUnit, settlementGroups]
   );
 
   const validationMessages = [
@@ -491,19 +582,27 @@ export default function Home() {
     `端数調整：${formatAdjustmentText(result.roundingAdjustment)}`
   ].join("\n");
 
-  const individualPaymentRows = result.rows.flatMap<{ id: string; role: string; name: string; amount: number }>((row) => {
-    const names = (form.participantNames[row.id] ?? "").split(/\r?\n/);
-    const label = displayGroupLabel(row);
+  const categoryIndexes: Record<string, number> = {};
+  const individualPaymentRows = form.participants.flatMap<{ id: string; role: string; name: string; amount: number }>((participant) => {
+    const groupId = normalizeParticipantGroupId(participant.groupId);
+    const row = result.rows.find((item) => item.id === groupId);
+    if (!row) {
+      return [];
+    }
 
-    return Array.from({ length: row.people }).map((_, index) => {
-      const name = names[index]?.trim() || numberedName(label, index);
-      return {
-        id: `${row.id}-${index}`,
+    const label = displayGroupLabel(row);
+    const index = categoryIndexes[groupId] ?? 0;
+    categoryIndexes[groupId] = index + 1;
+    const name = participant.name.trim() || numberedName(label, index);
+
+    return [
+      {
+        id: participant.id,
         role: label,
         name,
         amount: row.finalPerPerson
-      };
-    });
+      }
+    ];
   });
   const individualPaymentLines = individualPaymentRows.map((row) => `${row.name}：${formatYenText(row.amount)}`);
   const personSettlementText = buildEmailPaymentList(
@@ -553,12 +652,16 @@ export default function Home() {
 
   const paymentSubject = `【精算のお願い】${form.eventName || "飲み会"}`;
 
-  const personalRows = personalForm.participants.map((participant, index) => {
+  const personalCategoryIndexes: Record<string, number> = {};
+  const personalRows = personalForm.participants.map((participant) => {
     const role = personalForm.roles.find((item) => item.id === participant.roleId) ?? personalForm.roles[0];
+    const roleLabel = role?.label ?? "未設定";
+    const index = personalCategoryIndexes[participant.roleId] ?? 0;
+    personalCategoryIndexes[participant.roleId] = index + 1;
     return {
       ...participant,
-      displayName: participant.name.trim() || `参加者${index + 1}`,
-      roleLabel: role?.label ?? "未設定",
+      displayName: participant.name.trim() || numberedName(roleLabel, index),
+      roleLabel,
       amount: role?.fee ?? 0
     };
   });
@@ -654,6 +757,28 @@ export default function Home() {
         ...current.participantNames,
         [groupId]: value
       }
+    }));
+  }
+
+  function updateParticipantCount(nextCount: number) {
+    const count = Math.max(0, Math.floor(nextCount));
+    setForm((current) => ({
+      ...current,
+      participantCount: count,
+      participants: syncSettlementParticipants(current.participants, count)
+    }));
+    setPersonalForm((current) => ({
+      ...current,
+      participants: syncPersonalParticipants(current.participants, count)
+    }));
+  }
+
+  function updateSettlementParticipant(id: string, patch: Partial<SettlementParticipant>) {
+    setForm((current) => ({
+      ...current,
+      participants: current.participants.map((participant) =>
+        participant.id === id ? { ...participant, ...patch } : participant
+      )
     }));
   }
 
@@ -797,7 +922,7 @@ export default function Home() {
           <div className="border-2 border-[#111827] bg-white p-3">
             <div className="mb-3 flex items-center gap-2 border-b-2 border-[#111827] pb-2">
               <span className="size-2.5 shrink-0 border border-[#111827] bg-brand" aria-hidden="true" />
-              <h2 className="text-[15px] font-bold">領収金額と会の名前</h2>
+              <h2 className="text-[15px] font-bold">領収金額と会の概要</h2>
             </div>
             <div className="grid gap-3">
               <label className="grid gap-1.5">
@@ -818,6 +943,16 @@ export default function Home() {
                     onChange={(event) => setForm({ ...form, totalAmount: numberValue(event.target.value) })}
                     className="min-h-10 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-base font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                     placeholder="50000"
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-bold text-ink-sub">参加人数</span>
+                  <input
+                    inputMode="numeric"
+                    value={form.participantCount || ""}
+                    onChange={(event) => updateParticipantCount(numberValue(event.target.value))}
+                    className="min-h-10 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-base font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
+                    placeholder="5"
                   />
                 </label>
                 <div className="grid gap-1.5 sm:col-span-2">
@@ -863,24 +998,8 @@ export default function Home() {
               <span className="size-2.5 shrink-0 border border-[#111827] bg-brand" aria-hidden="true" />
               <h2 className="text-[15px] font-bold">参加者の内訳</h2>
             </div>
-            <div className="mb-2.5 grid gap-1.5 sm:grid-cols-3">
-              {(Object.keys(modeLabels) as GroupMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => changeMode(mode)}
-                  className={`min-h-10 rounded-none border-[1.5px] border-[#111827] px-2.5 text-xs font-bold transition sm:min-h-8 ${
-                    form.mode === mode
-                      ? "bg-brand text-white"
-                      : "bg-white text-ink hover:bg-[#f7f4ec]"
-                  }`}
-                >
-                  {modeLabels[mode]}
-                </button>
-              ))}
-            </div>
             <p className="mb-2.5 text-sm font-normal leading-6 text-ink-sub">
-              参加する役職・年次の人数を調整してください。金額の差は選んだ強さに応じて自動計算します。
+              参加者ごとに名前と区分を入力してください。名前は空欄でも使えます。
             </p>
             <p className="mb-2 text-xs font-bold text-muted">傾斜の強さ</p>
             <div className="mb-2.5 grid grid-cols-3 gap-1.5">
@@ -897,85 +1016,45 @@ export default function Home() {
                 >
                   <span className="block">{presetLabels[key]}</span>
                   <span className={`mt-0.5 block text-[10px] font-bold ${preset === key ? "text-brand-soft" : "text-muted"}`}>
-                    部長と3年目の差：約 {getPresetDifference(form.totalAmount, form.roundingUnit, form.groups, key)}
+                    部長と3年目の差：約 {getPresetDifference(form.totalAmount, form.roundingUnit, settlementGroups, key)}
                   </span>
                 </button>
               ))}
             </div>
-            <div className="space-y-1.5">
-              {autoRoleRows.map((group) => {
-                const label = displayGroupLabel(group);
-                const namesValue = form.participantNames[group.id] ?? "";
-                const enteredNameCount = splitNames(namesValue).length;
-                const hasTooManyNames = enteredNameCount > group.people;
-
-                return (
-                <div key={group.id} className={`border-[1.5px] border-[#111827] p-1.5 ${group.people > 0 ? "bg-white" : "bg-[#eee9dd] text-muted"}`}>
-                  <div className="grid gap-2 sm:grid-cols-[minmax(0,120px)_152px_minmax(180px,1fr)] sm:items-start">
-                    {form.mode === "free" ? (
-                      <label className="grid gap-1">
-                        <span className="text-xs font-bold text-muted">グループ名</span>
-                        <input
-                          value={group.label}
-                          onChange={(event) => updateGroup(group.id, { label: event.target.value })}
-                          className="min-h-11 w-full rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-8"
-                        />
-                      </label>
-                    ) : (
-                      <div>
-                        <p className="inline-flex min-h-8 items-center border border-[#111827] bg-[#f7f4ec] px-2 text-sm font-bold text-ink">{label}</p>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between gap-2 sm:justify-end">
-                      <button
-                        type="button"
-                        onClick={() => updatePeople(group.id, group.people - 1)}
-                        className="grid size-11 shrink-0 place-items-center rounded-none border-[1.5px] border-[#111827] bg-white text-ink transition hover:bg-[#f7f4ec] focus:outline-none focus:ring-2 focus:ring-brand/30 sm:size-8"
-                        aria-label={`${label}を1名減らす`}
-                      >
-                        <Minus size={15} aria-hidden="true" />
-                      </button>
-                      <input
-                        inputMode="numeric"
-                        aria-label={`${label}の人数`}
-                        value={group.people}
-                        onChange={(event) => updatePeople(group.id, numberValue(event.target.value))}
-                        className="h-11 w-14 rounded-none border-[1.5px] border-[#111827] bg-white px-2 text-center text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:h-8"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => updatePeople(group.id, group.people + 1)}
-                        className="grid size-11 shrink-0 place-items-center rounded-none border-[1.5px] border-[#111827] bg-white text-ink transition hover:bg-[#f7f4ec] focus:outline-none focus:ring-2 focus:ring-brand/30 sm:size-8"
-                        aria-label={`${label}を1名増やす`}
-                      >
-                        <Plus size={15} aria-hidden="true" />
-                      </button>
-                    </div>
+            <div className="overflow-hidden border border-[#111827] bg-white">
+              <div className="grid grid-cols-[44px_minmax(0,1fr)] border-b border-[#111827] bg-[#eee9dd] px-2 py-2 text-xs font-bold text-ink sm:grid-cols-[44px_minmax(0,1fr)_160px]">
+                <span>No.</span>
+                <span>名前（任意）</span>
+                <span className="hidden sm:block">区分</span>
+              </div>
+              <div className="divide-y divide-[#111827]">
+                {form.participants.map((participant, index) => (
+                  <div key={participant.id} className="grid grid-cols-[44px_minmax(0,1fr)] gap-2 p-2 sm:grid-cols-[44px_minmax(0,1fr)_160px] sm:items-center">
+                    <p className="pt-3 text-sm font-bold text-ink [font-variant-numeric:tabular-nums] sm:pt-0">{index + 1}</p>
                     <label className="grid gap-1">
-                      <span className="text-xs font-bold text-muted">名前（任意）</span>
-                      {group.people >= 2 ? (
-                        <textarea
-                          value={namesValue}
-                          onChange={(event) => updateParticipantNames(group.id, event.target.value)}
-                          className="min-h-20 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-16"
-                          placeholder={"山田さん\n佐藤さん"}
-                        />
-                      ) : (
-                        <input
-                          value={namesValue}
-                          onChange={(event) => updateParticipantNames(group.id, event.target.value)}
-                          className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-8"
-                          placeholder={numberedName(label, 0)}
-                        />
-                      )}
-                      {hasTooManyNames && (
-                        <span className="text-xs font-bold text-warn">人数より名前が多く入力されています</span>
-                      )}
+                      <span className="text-xs font-bold text-muted sm:hidden">名前（任意）</span>
+                      <input
+                        value={participant.name}
+                        onChange={(event) => updateSettlementParticipant(participant.id, { name: event.target.value })}
+                        className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-8"
+                        placeholder={`${displayGroupLabel(form.groups.find((group) => group.id === participant.groupId) ?? form.groups[0])} ${circledNumbers[0]}`}
+                      />
+                    </label>
+                    <label className="col-start-2 grid gap-1 sm:col-start-auto">
+                      <span className="text-xs font-bold text-muted sm:hidden">区分</span>
+                      <select
+                        value={participant.groupId}
+                        onChange={(event) => updateSettlementParticipant(participant.id, { groupId: event.target.value })}
+                        className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-8"
+                      >
+                        {groupTemplates.role.map((group) => (
+                          <option key={group.id} value={group.id}>{group.label}</option>
+                        ))}
+                      </select>
                     </label>
                   </div>
-                </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
             <details className="mt-3 border-[1.5px] border-[#111827] bg-white p-3">
               <summary className="cursor-pointer text-sm font-bold text-ink-sub">詳細設定：傾斜を手動調整する</summary>
@@ -1006,9 +1085,6 @@ export default function Home() {
               participants={personalForm.participants}
               onRoleChange={updateFeeRole}
               onParticipantChange={updatePersonalParticipant}
-              onParticipantAdd={addPersonalParticipant}
-              onParticipantDuplicate={duplicatePersonalParticipant}
-              onParticipantRemove={removePersonalParticipant}
             />
           )}
 
@@ -1142,18 +1218,12 @@ function PersonalModeInputs({
   roles,
   participants,
   onRoleChange,
-  onParticipantChange,
-  onParticipantAdd,
-  onParticipantDuplicate,
-  onParticipantRemove
+  onParticipantChange
 }: {
   roles: FeeRole[];
   participants: PersonalParticipant[];
   onRoleChange: (id: string, patch: Partial<FeeRole>) => void;
   onParticipantChange: (id: string, patch: Partial<PersonalParticipant>) => void;
-  onParticipantAdd: () => void;
-  onParticipantDuplicate: (participant: PersonalParticipant) => void;
-  onParticipantRemove: (id: string) => void;
 }) {
   return (
     <div className="border-2 border-[#111827] bg-white p-3">
@@ -1171,7 +1241,7 @@ function PersonalModeInputs({
           {roles.map((role) => (
             <div key={role.id} className="grid gap-2 border-[1.5px] border-[#111827] bg-[#f7f4ec] p-2 sm:grid-cols-[minmax(0,1fr)_128px] sm:items-end">
               <label className="grid gap-1">
-                <span className="text-xs font-bold text-muted">役職</span>
+                <span className="text-xs font-bold text-muted">区分</span>
                 <input
                   value={role.label}
                   onChange={(event) => onRoleChange(role.id, { label: event.target.value })}
@@ -1194,23 +1264,18 @@ function PersonalModeInputs({
       </div>
 
       <div>
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h3 className="text-xs font-bold text-muted">参加者</h3>
-          <button
-            type="button"
-            onClick={onParticipantAdd}
-            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-none border border-[#111827] bg-white px-2.5 text-xs font-bold text-ink transition hover:bg-[#f7f4ec] sm:min-h-8"
-          >
-            <Plus size={14} aria-hidden="true" />
-            追加
-          </button>
-        </div>
-        <div className="grid gap-2">
+        <h3 className="mb-2 text-xs font-bold text-muted">参加者</h3>
+        <div className="overflow-hidden border border-[#111827] bg-white">
+          <div className="grid grid-cols-[44px_minmax(0,1fr)] border-b border-[#111827] bg-[#eee9dd] px-2 py-2 text-xs font-bold text-ink sm:grid-cols-[44px_minmax(0,1fr)_160px]">
+            <span>No.</span>
+            <span>名前（任意）</span>
+            <span className="hidden sm:block">区分</span>
+          </div>
           {participants.map((participant, index) => (
-            <div key={participant.id} className="border-[1.5px] border-[#111827] bg-[#f7f4ec] p-2">
-              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_132px_auto] sm:items-end">
+            <div key={participant.id} className="grid grid-cols-[44px_minmax(0,1fr)] gap-2 border-b border-[#111827] p-2 last:border-b-0 sm:grid-cols-[44px_minmax(0,1fr)_160px] sm:items-center">
+              <p className="pt-3 text-sm font-bold text-ink [font-variant-numeric:tabular-nums] sm:pt-0">{index + 1}</p>
                 <label className="grid gap-1">
-                  <span className="text-xs font-bold text-muted">氏名</span>
+                  <span className="text-xs font-bold text-muted sm:hidden">名前（任意）</span>
                   <input
                     value={participant.name}
                     onChange={(event) => onParticipantChange(participant.id, { name: event.target.value })}
@@ -1218,8 +1283,8 @@ function PersonalModeInputs({
                     placeholder={`参加者${index + 1}`}
                   />
                 </label>
-                <label className="grid gap-1">
-                  <span className="text-xs font-bold text-muted">役職</span>
+                <label className="col-start-2 grid gap-1 sm:col-start-auto">
+                  <span className="text-xs font-bold text-muted sm:hidden">区分</span>
                   <select
                     value={participant.roleId}
                     onChange={(event) => onParticipantChange(participant.id, { roleId: event.target.value })}
@@ -1230,29 +1295,11 @@ function PersonalModeInputs({
                     ))}
                   </select>
                 </label>
-                <div className="grid grid-cols-2 gap-1.5 sm:flex">
-                  <button
-                    type="button"
-                    onClick={() => onParticipantDuplicate(participant)}
-                    className="min-h-11 rounded-none border border-[#111827] bg-white px-2 text-xs font-bold text-ink-sub transition hover:bg-[#f7f4ec] sm:min-h-9"
-                  >
-                    複製
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onParticipantRemove(participant.id)}
-                    className="grid min-h-11 place-items-center rounded-none border border-[#111827] bg-white px-2 text-muted transition hover:bg-warn-soft hover:text-warn sm:min-h-9"
-                    aria-label={`${participant.name || `参加者${index + 1}`}を削除`}
-                  >
-                    <Trash2 size={14} aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
             </div>
           ))}
           {participants.length === 0 && (
-            <p className="border border-[#111827] bg-[#f7f4ec] px-2.5 py-2 text-xs font-bold text-muted">
-              参加者を追加すると、個人別の精算表を作成できます。
+            <p className="bg-[#f7f4ec] px-2.5 py-2 text-xs font-bold text-muted">
+              参加人数を1名以上にすると、参加者行が表示されます。
             </p>
           )}
         </div>
@@ -1303,7 +1350,7 @@ function PersonalResultCard({
       </div>
       <div className="overflow-hidden border border-[#111827] bg-white">
         <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-[#111827] bg-[#eee9dd] px-3 py-2 text-xs font-bold text-ink">
-          <span>役職</span>
+          <span>役職・年次</span>
           <span>名前</span>
           <span className="text-right">金額</span>
         </div>
@@ -1389,7 +1436,7 @@ function ResultCard({
         {paymentRows ? (
           <>
             <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-[#111827] bg-[#eee9dd] px-3 py-2 text-xs font-bold text-ink">
-              <span>役職</span>
+              <span>役職・年次</span>
               <span>名前</span>
               <span className="text-right">金額</span>
             </div>
@@ -1409,7 +1456,7 @@ function ResultCard({
         ) : (
           <>
             <div className="grid grid-cols-[64px_minmax(0,1fr)_92px] border-b border-[#111827] bg-[#eee9dd] px-3 py-2 text-xs font-bold text-ink">
-              <span>役職</span>
+              <span>役職・年次</span>
               <span className="text-right">1人</span>
               <span className="text-right">小計</span>
             </div>
@@ -1458,10 +1505,10 @@ function SeoSection() {
   return (
     <section className="space-y-4 pb-8">
       <InfoCard title="幹事精算くんとは？">
-        幹事精算くんは、会社の飲み会や歓送迎会の精算を整理するブラウザ上の簡易ツールです。金額とグループ人数を入力すると、傾斜精算表と連絡文を作成できます。
+        幹事精算くんは、会社の飲み会・歓送迎会・忘年会などで使える精算表作成ツールです。領収金額、役職・年次ごとの人数、必要に応じた参加者名を入力すると、個人別の精算表、上司確認文、参加者向け連絡文を作成できます。
       </InfoCard>
-      <InfoCard title="傾斜精算とは？">
-        傾斜精算とは、役職や年次に応じて支払額に差をつける精算方法です。会社の飲み会では、役職が上の方が少し多く負担し、年次の浅い方の負担を抑える形で使われます。
+      <InfoCard title="飲み会の傾斜計算を自動化">
+        飲み会の精算では、部長・課長などの役職者や年次に応じて支払額に差をつける「傾斜計算」が必要になることがあります。幹事精算くんでは、参加人数や役職・年次を入力するだけで、傾斜精算表を自動作成できます。
       </InfoCard>
       <InfoCard title="こんな場面で使えます">
         歓送迎会、忘年会、部署飲み会、プロジェクト打ち上げなど、幹事が先に支払い、あとから参加者へ精算案を共有する場面に向いています。
@@ -1474,20 +1521,24 @@ function SeoSection() {
 function FaqCard() {
   const items = [
     {
-      question: "傾斜精算とは何ですか？",
-      answer: "役職や年次に応じて支払額に差をつける精算方法です。役職が上の方が少し多く負担する場面で使われます。"
+      question: "傾斜計算を自動でできますか？",
+      answer: "はい。参加人数と役職・年次を入力すると、選んだ傾斜の強さに応じて精算額を自動計算できます。"
     },
     {
-      question: "金額差を自分で決める必要はありますか？",
-      answer: "基本的には不要です。分け方と人数を入れ、傾斜の強さを選ぶだけで計算できます。"
+      question: "飲み会の傾斜精算に使えますか？",
+      answer: "会社の飲み会、歓送迎会、忘年会などで、役職や年次に応じて支払額を分けたい場合に使えます。"
     },
     {
-      question: "入力内容は保存されますか？",
-      answer: "入力内容はブラウザ内で処理され、サーバーには送信されません。必要に応じて、この端末内にのみ保存されます。"
+      question: "傾斜割り勘との違いは何ですか？",
+      answer: "一般的な割り勘は全員で同額に近く分けますが、傾斜精算では役職や年次に応じて負担額に差をつけます。"
     },
     {
-      question: "メールやLINEに貼り付けられますか？",
-      answer: "はい。上司確認用、参加者向けメール用、LINE/Teams向け短縮文、御礼文をコピーできます。"
+      question: "係数を自分で決める必要はありますか？",
+      answer: "通常は不要です。役職・年次ごとの参加者を入力すると、選んだ傾斜の強さに応じて自動計算できます。必要な場合のみ詳細設定で調整できます。"
+    },
+    {
+      question: "入力内容は送信されますか？",
+      answer: "入力内容はブラウザ内で処理され、サーバーには送信されません。銀行口座情報の入力欄もありません。"
     }
   ];
 
