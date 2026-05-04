@@ -9,14 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0f172a",
-        paper: "#f8fafc",
-        line: "#e2e8f0",
-        brand: "#2563eb",
-        accent: "#0f766e"
+        ink: "#102033",
+        paper: "#f7f9fc",
+        line: "#d8e0ea",
+        brand: "#2f5f9f",
+        accent: "#4b697f"
       },
       boxShadow: {
-        soft: "0 18px 45px rgba(15, 23, 42, 0.08)"
+        soft: "0 1px 2px rgba(16, 32, 51, 0.04)"
       }
     }
   },
