@@ -52,44 +52,71 @@ const roundingUnits = [1, 10, 100, 500, 1000];
 const groupWeights: Record<GroupMode, Record<PresetKey, Record<string, number>>> = {
   role: {
     gentle: {
+      executive: 1.45,
       director: 1.35,
       manager: 1.22,
       management: 1.14,
-      year10: 1.08,
+      year15: 1.14,
+      year10_14: 1.1,
+      year10: 1.1,
+      year9: 1.07,
+      year8: 1.06,
       year7: 1.05,
-      year4: 1,
+      year6: 1.03,
+      year5: 1,
+      year4: 0.98,
       year3: 0.96,
       year2: 0.92,
       junior: 0.92,
       year1: 0.8,
+      candidate: 0.75,
+      guest: 0.75,
       senior: 1.05,
       newcomer: 0.8
     },
     standard: {
+      executive: 1.8,
       director: 1.6,
       manager: 1.4,
       management: 1.25,
-      year10: 1.15,
+      year15: 1.25,
+      year10_14: 1.2,
+      year10: 1.2,
+      year9: 1.16,
+      year8: 1.13,
       year7: 1.1,
-      year4: 1,
+      year6: 1.06,
+      year5: 1,
+      year4: 0.96,
       year3: 0.92,
       year2: 0.85,
       junior: 0.85,
       year1: 0.65,
+      candidate: 0.6,
+      guest: 0.6,
       senior: 1.1,
       newcomer: 0.65
     },
     strong: {
+      executive: 2.15,
       director: 1.9,
       manager: 1.6,
       management: 1.35,
-      year10: 1.2,
+      year15: 1.35,
+      year10_14: 1.28,
+      year10: 1.28,
+      year9: 1.2,
+      year8: 1.15,
       year7: 1.1,
-      year4: 0.95,
+      year6: 1.02,
+      year5: 0.95,
+      year4: 0.9,
       year3: 0.85,
       year2: 0.75,
       junior: 0.75,
       year1: 0.5,
+      candidate: 0.45,
+      guest: 0.45,
       senior: 1.1,
       newcomer: 0.5
     }
@@ -141,21 +168,35 @@ const groupWeights: Record<GroupMode, Record<PresetKey, Record<string, number>>>
 
 const groupTemplates: Record<GroupMode, Array<Omit<RoleGroup, "weight">>> = {
   role: [
+    { id: "executive", label: "役員", people: 0 },
     { id: "director", label: "部長", people: 1 },
     { id: "manager", label: "課長", people: 1 },
     { id: "management", label: "管理職", people: 0 },
-    { id: "year10", label: "10年目以上", people: 0 },
-    { id: "year7", label: "7〜9年目", people: 0 },
-    { id: "year4", label: "4〜6年目", people: 0 },
+    { id: "year15", label: "15年目以上", people: 0 },
+    { id: "year10_14", label: "10〜14年目", people: 0 },
+    { id: "year9", label: "9年目", people: 0 },
+    { id: "year8", label: "8年目", people: 0 },
+    { id: "year7", label: "7年目", people: 0 },
+    { id: "year6", label: "6年目", people: 0 },
+    { id: "year5", label: "5年目", people: 0 },
+    { id: "year4", label: "4年目", people: 0 },
     { id: "year3", label: "3年目", people: 0 },
     { id: "year2", label: "2年目", people: 0 },
-    { id: "year1", label: "1年目", people: 0 }
+    { id: "year1", label: "1年目", people: 0 },
+    { id: "candidate", label: "内定者", people: 0 },
+    { id: "guest", label: "ゲスト", people: 0 }
   ],
   year: [
-    { id: "year10", label: "10年目以上", people: 2 },
-    { id: "year7", label: "7〜9年目", people: 3 },
-    { id: "year4", label: "4〜6年目", people: 4 },
-    { id: "year2", label: "2〜3年目", people: 4 },
+    { id: "year15", label: "15年目以上", people: 1 },
+    { id: "year10_14", label: "10〜14年目", people: 1 },
+    { id: "year9", label: "9年目", people: 0 },
+    { id: "year8", label: "8年目", people: 0 },
+    { id: "year7", label: "7年目", people: 1 },
+    { id: "year6", label: "6年目", people: 1 },
+    { id: "year5", label: "5年目", people: 1 },
+    { id: "year4", label: "4年目", people: 1 },
+    { id: "year3", label: "3年目", people: 1 },
+    { id: "year2", label: "2年目", people: 1 },
     { id: "year1", label: "1年目", people: 1 }
   ],
   free: [
@@ -166,6 +207,21 @@ const groupTemplates: Record<GroupMode, Array<Omit<RoleGroup, "weight">>> = {
   ]
 };
 
+const categoryOptionGroups = [
+  {
+    label: "役職",
+    ids: ["executive", "director", "manager", "management"]
+  },
+  {
+    label: "年次",
+    ids: ["year15", "year10_14", "year9", "year8", "year7", "year6", "year5", "year4", "year3", "year2", "year1"]
+  },
+  {
+    label: "その他",
+    ids: ["candidate", "guest"]
+  }
+];
+
 const defaultParticipantRows: SettlementParticipant[] = [
   { id: "row-1", name: "山田さん", groupId: "director" },
   { id: "row-2", name: "佐藤さん", groupId: "manager" },
@@ -175,15 +231,23 @@ const defaultParticipantRows: SettlementParticipant[] = [
 ];
 
 const defaultFeeRoles: FeeRole[] = [
+  { id: "executive", label: "役員", fee: 9000 },
   { id: "director", label: "部長", fee: 7000 },
   { id: "manager", label: "課長", fee: 5000 },
   { id: "management", label: "管理職", fee: 5000 },
-  { id: "year10", label: "10年目以上", fee: 4500 },
-  { id: "year7", label: "7〜9年目", fee: 4000 },
-  { id: "year4", label: "4〜6年目", fee: 3500 },
+  { id: "year15", label: "15年目以上", fee: 5000 },
+  { id: "year10_14", label: "10〜14年目", fee: 4500 },
+  { id: "year9", label: "9年目", fee: 4200 },
+  { id: "year8", label: "8年目", fee: 4000 },
+  { id: "year7", label: "7年目", fee: 3800 },
+  { id: "year6", label: "6年目", fee: 3600 },
+  { id: "year5", label: "5年目", fee: 3400 },
+  { id: "year4", label: "4年目", fee: 3200 },
   { id: "year3", label: "3年目", fee: 3000 },
   { id: "year2", label: "2年目", fee: 2500 },
-  { id: "year1", label: "1年目", fee: 1000 }
+  { id: "year1", label: "1年目", fee: 1000 },
+  { id: "candidate", label: "内定者", fee: 1000 },
+  { id: "guest", label: "ゲスト", fee: 1000 }
 ];
 
 const initialPersonalForm: PersonalFormState = {
@@ -210,7 +274,21 @@ function buildGroups(mode: GroupMode, preset: PresetKey, previousGroups: RoleGro
 }
 
 function normalizeGroupLabels(groups: RoleGroup[]) {
-  return groups;
+  return groups.map((group) => ({
+    ...group,
+    id: normalizeParticipantGroupId(group.id)
+  }));
+}
+
+function mergeFeeRoles(roles: FeeRole[] | undefined) {
+  return defaultFeeRoles.map((role) => {
+    const previous = roles?.find((item) => normalizeParticipantGroupId(item.id) === role.id);
+
+    return {
+      ...role,
+      fee: previous?.fee ?? role.fee
+    };
+  });
 }
 
 function syncSettlementParticipants(
@@ -238,7 +316,8 @@ function normalizeParticipantGroupId(groupId: string) {
   const legacyMap: Record<string, string> = {
     senior: "year7",
     junior: "year3",
-    newcomer: "year1"
+    newcomer: "year1",
+    year10: "year10_14"
   };
 
   return legacyMap[groupId] ?? groupId;
@@ -439,7 +518,7 @@ function displayGroupLabel(group: Pick<RoleGroup, "id" | "label">) {
   }
 
   if (group.id === "senior") {
-    return "7〜9年目";
+    return "7年目";
   }
 
   if (group.id === "newcomer") {
@@ -494,7 +573,7 @@ export default function Home() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as Partial<FormState>;
-        const storedMode = parsed.mode ?? initialForm.mode;
+        const storedMode = initialForm.mode;
         setForm({
           ...initialForm,
           mode: storedMode,
@@ -524,8 +603,13 @@ export default function Home() {
       try {
         const parsed = JSON.parse(storedPersonal) as Partial<PersonalFormState>;
         setPersonalForm({
-          roles: parsed.roles?.length ? parsed.roles : initialPersonalForm.roles,
-          participants: parsed.participants?.length ? parsed.participants : initialPersonalForm.participants
+          roles: mergeFeeRoles(parsed.roles),
+          participants: parsed.participants?.length
+            ? parsed.participants.map((participant) => ({
+                ...participant,
+                roleId: normalizeParticipantGroupId(participant.roleId)
+              }))
+            : initialPersonalForm.participants
         });
       } catch {
         window.localStorage.removeItem("kanji-seisan-personal-form");
@@ -860,7 +944,7 @@ export default function Home() {
   }
 
   const autoRoleRows = form.mode === "role"
-    ? form.groups.filter((group) => ["director", "manager", "management", "year10", "year7", "year4", "year3", "year2", "year1"].includes(group.id))
+    ? form.groups.filter((group) => groupTemplates.role.some((template) => template.id === group.id))
     : form.groups;
   const mobileTotal = workflowMode === "auto" ? result.finalTotal : personalCollectionTotal;
   const mobileDifference = workflowMode === "auto" ? result.finalTotal - form.totalAmount : personalDifference;
@@ -1047,8 +1131,13 @@ export default function Home() {
                         onChange={(event) => updateSettlementParticipant(participant.id, { groupId: event.target.value })}
                         className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-8"
                       >
-                        {groupTemplates.role.map((group) => (
-                          <option key={group.id} value={group.id}>{group.label}</option>
+                        {categoryOptionGroups.map((section) => (
+                          <optgroup key={section.label} label={section.label}>
+                            {section.ids.map((id) => {
+                              const group = groupTemplates.role.find((item) => item.id === id);
+                              return group ? <option key={group.id} value={group.id}>{group.label}</option> : null;
+                            })}
+                          </optgroup>
                         ))}
                       </select>
                     </label>
@@ -1290,8 +1379,13 @@ function PersonalModeInputs({
                     onChange={(event) => onParticipantChange(participant.id, { roleId: event.target.value })}
                     className="min-h-11 rounded-none border-[1.5px] border-[#111827] bg-white px-2.5 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 sm:min-h-9"
                   >
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.id}>{role.label || "未設定"}</option>
+                    {categoryOptionGroups.map((section) => (
+                      <optgroup key={section.label} label={section.label}>
+                        {section.ids.map((id) => {
+                          const role = roles.find((item) => item.id === id);
+                          return role ? <option key={role.id} value={role.id}>{role.label || "未設定"}</option> : null;
+                        })}
+                      </optgroup>
                     ))}
                   </select>
                 </label>
@@ -1530,7 +1624,7 @@ function FaqCard() {
     },
     {
       question: "傾斜割り勘との違いは何ですか？",
-      answer: "一般的な割り勘は全員で同額に近く分けますが、傾斜精算では役職や年次に応じて負担額に差をつけます。"
+      answer: "通常の割り勘は全員で同額に近く分けますが、傾斜精算では役職や年次に応じて負担額に差をつけます。"
     },
     {
       question: "係数を自分で決める必要はありますか？",
