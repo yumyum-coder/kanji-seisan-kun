@@ -143,7 +143,6 @@ const groupTemplates: Record<GroupMode, Array<Omit<RoleGroup, "weight">>> = {
   role: [
     { id: "director", label: "部長", people: 1 },
     { id: "manager", label: "課長", people: 1 },
-    { id: "junior", label: "一般", people: 0 },
     { id: "management", label: "管理職", people: 0 },
     { id: "year10", label: "10年目以上", people: 0 },
     { id: "year7", label: "7〜9年目", people: 0 },
@@ -357,7 +356,7 @@ const circledNumbers = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", 
 
 function displayGroupLabel(group: Pick<RoleGroup, "id" | "label">) {
   if (group.id === "junior") {
-    return "一般";
+    return "3年目";
   }
 
   if (group.id === "senior") {
@@ -382,7 +381,7 @@ function getPresetDifference(totalAmount: number, roundingUnit: number, groups: 
   }));
   const preview = calculateSettlement({ totalAmount, roundingUnit, groups: previewGroups });
   const director = preview.rows.find((row) => row.id === "director");
-  const general = preview.rows.find((row) => row.id === "junior");
+  const general = preview.rows.find((row) => row.id === "year3");
 
   if (!director || !general || director.people <= 0 || general.people <= 0) {
     return formatYen(0);
@@ -769,10 +768,10 @@ export default function Home() {
   }
 
   const autoRoleRows = form.mode === "role"
-    ? form.groups.filter((group) => ["director", "manager", "junior"].includes(group.id) || group.people > 0)
+    ? form.groups.filter((group) => ["director", "manager", "management", "year10", "year7", "year4", "year3", "year2", "year1"].includes(group.id))
     : form.groups;
-  const addableRoleRows = form.mode === "role"
-    ? form.groups.filter((group) => ["management", "year10", "year7", "year4", "year3", "year2", "year1"].includes(group.id) && group.people <= 0)
+  const addableRoleRows: RoleGroup[] = form.mode === "role"
+    ? []
     : [];
   const mobileTotal = workflowMode === "auto" ? result.finalTotal : personalCollectionTotal;
   const mobileDifference = workflowMode === "auto" ? result.finalTotal - form.totalAmount : personalDifference;
@@ -943,7 +942,7 @@ export default function Home() {
                 >
                   <span className="block">{presetLabels[key]}</span>
                   <span className={`mt-0.5 block text-[10px] font-bold ${preset === key ? "text-brand-soft" : "text-muted"}`}>
-                    部長と一般の差：約 {getPresetDifference(form.totalAmount, form.roundingUnit, form.groups, key)}
+                    部長と3年目の差：約 {getPresetDifference(form.totalAmount, form.roundingUnit, form.groups, key)}
                   </span>
                 </button>
               ))}
